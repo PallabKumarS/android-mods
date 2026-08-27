@@ -103,12 +103,12 @@ Once your AOD stays on permanently, `AodDimmer` ensures it stays at the perfect 
 
 ## 📥 Downloads
 
-All binaries are available in the [Releases](https://github.com/PallabKumarS/hyperos-aod-dimmer/releases/latest) tab:
+All binaries are available in the [Releases](https://github.com/PallabKumarS/hyperos-aod-mods/releases/latest) tab:
 
 | File | Description | Download |
 | :--- | :--- | :--- |
-| **`AodDimmer.apk`** | LSPosed module app with companion UI. | [Download APK](https://github.com/PallabKumarS/hyperos-aod-dimmer/releases/latest/download/AodDimmer.apk) |
-| **`hyperos-aon-aod.zip`** | KernelSU / Magisk / APatch module to unlock true Always-On Display. | [Download ZIP](https://github.com/PallabKumarS/hyperos-aod-dimmer/releases/latest/download/hyperos-aon-aod.zip) |
+| **`AodDimmer.apk`** | LSPosed module app with companion UI. | [Download APK](https://github.com/PallabKumarS/hyperos-aod-mods/releases/latest/download/AodDimmer.apk) |
+| **`hyperos-aon-aod.zip`** | KernelSU / Magisk / APatch module to unlock true Always-On Display. | [Download ZIP](https://github.com/PallabKumarS/hyperos-aod-mods/releases/latest/download/hyperos-aon-aod.zip) |
 
 ---
 
