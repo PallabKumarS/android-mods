@@ -22,6 +22,18 @@ This suite provides two specialized, complementary tools to solve both problems:
 
 ---
 
+## ⚠️ Important Requirement: MetaModule for KernelSU
+
+> [!IMPORTANT]
+> **KernelSU users MUST install [MetaModule](https://github.com/KernelSU/MetaModule) (or an OverlayFS provider module).**
+> 
+> **Why is MetaModule required?**
+> Modern Xiaomi devices running HyperOS format `/product` and `/system_ext` as read-only **EROFS partitions**. Standard KernelSU only manages `$MODPATH/system` by default and cannot modify `/product` directly. 
+> 
+> **MetaModule** provides the necessary OverlayFS and bind-mount environment during early boot (`post-fs-data.sh`), enabling `hyperos-aon-aod.zip` to successfully bind-mount the modified XML over `/product/etc/device_features/<device>.xml`. Without MetaModule, the feature-gate override will not take effect on KernelSU.
+
+---
+
 ## 📦 Component 1: `hyperos-aon-aod.zip` (Feature-Gate Unlocker)
 
 ### What It Does
@@ -36,13 +48,14 @@ When `is_only_support_keycode_goto` is set to `true`, HyperOS forces the 10-seco
 
 1. **Dynamic Codename Detection:** Reads `ro.product.device` at boot (e.g., `garnet` for POCO X6 5G) without hardcoding device XMLs.
 2. **Systemless Modification:** Creates a patched copy in memory with `is_only_support_keycode_goto=false`.
-3. **SELinux & EROFS Compliant:** Restores exact SELinux contexts (`chcon --reference`) and executes an early `mount -o bind` during `post-fs-data.sh`.
-4. **`skip_mount` Integration:** Bypasses rigid partition overlays, making it 100% compatible with read-only EROFS and dynamic partitions.
+3. **SELinux & EROFS Compliant:** Restores exact SELinux contexts (`chcon --reference`) and executes an early `mount -o bind` during `post-fs-data.sh` (powered by MetaModule).
+4. **`skip_mount` Integration:** Bypasses rigid partition overlays, ensuring 100% compatibility with read-only EROFS and dynamic partitions.
 
 ### Installation
-1. Flash **`hyperos-aon-aod.zip`** in **KernelSU**, **KernelSU-Next**, **APatch**, or **Magisk**.
-2. Reboot your device.
-3. Go to **Settings > Always-on display & Lock screen > Display items** and select **"Always"** or **"Scheduled"**.
+1. Ensure **MetaModule** is installed and active in **KernelSU** (or use Magisk / APatch).
+2. Flash **`hyperos-aon-aod.zip`** in your root manager.
+3. Reboot your device.
+4. Go to **Settings > Always-on display & Lock screen > Display items** and select **"Always"** or **"Scheduled"**.
 
 ---
 
@@ -57,7 +70,7 @@ Once your AOD stays on permanently, `AodDimmer` ensures it stays at the perfect 
   - **Min Dim Brightness (Dark Room):** Set your preferred low-light level (*Default: 2.0 nits, Range: 0.5 – 10.0 nits, Stock was 5.0 nits*).
   - **Max Ambient Brightness (Lit Room):** Cap lit-room AOD brightness so HyperOS won't jump back to stock 60 nits (*Default: 30 nits, Range: 10 – 120 nits*).
   - **Outdoor Sunlight Scaling:** Retains automatic scalability under intense sunlight so clock and notifications stay legible.
-- 🎚️ **Lux Change Sensitivity Threshold:** Choose the exact percentage shift in ambient light (`5%` to `50%`, default `20%`) required to trigger a brightness change. Prevents brightness jitter from small shadows or moving in a chair.
+- 🎚️ **Lux Change Sensitivity Threshold:** Choose the exact percentage shift in ambient light (`5%` to `50%`, default `20%`) required to trigger a brightness change. Prevents brightness jitter from minor shadows.
 - ⚡ **Sensor Event Throttling:** Configurable debounce timer (`0.5s` to `5.0s`, default `2.0s`) to suppress redundant sensor polling interrupts and save screen-off battery.
 - 🔄 **Live In-App Configuration:** Adjust settings on the fly from the companion app UI without requiring device reboots.
 
@@ -105,23 +118,23 @@ For the best Always-On Display experience:
 
 ```mermaid
 graph LR
-    A["1. Flash hyperos-aon-aod.zip"] --> B["2. Reboot Phone"]
-    B --> C["3. Enable 'Always' in Settings"]
+    A["1. Install MetaModule in KernelSU"] --> B["2. Flash hyperos-aon-aod.zip & Reboot"]
+    B --> C["3. Enable 'Always' in Display Settings"]
     C --> D["4. Install AodDimmer.apk"]
-    D --> E["5. Enable in LSPosed (android scope)"]
-    E --> F["6. Soft Reboot"]
-    F --> G["7. Tune Sliders in AOD Dimmer App"]
+    D --> E["5. Enable in LSPosed (android scope) & Soft Reboot"]
+    E --> F["6. Customize Sliders in AOD Dimmer App"]
 ```
 
-1. Flash **`hyperos-aon-aod.zip`** in your root manager (KernelSU / Magisk / APatch) and reboot.
-2. Go to **Settings > Always-on display & Lock screen > Display items** and choose **"Always"**.
-3. Install **`AodDimmer.apk`**.
-4. Open **LSPosed**, activate **AOD Dimmer** with the **System Framework (`android`)** scope, and do a quick soft reboot.
-5. Open the **AOD Dimmer** app and set your desired **Min Nits** (e.g. 2.0 nits), **Max Nits** (e.g. 30 nits), and **Lux Threshold** (e.g. 20%).
+1. **Install MetaModule:** In KernelSU, flash **MetaModule** (OverlayFS provider) and reboot.
+2. **Unlock True AOD:** Flash **`hyperos-aon-aod.zip`** in KernelSU / Magisk and reboot.
+3. **Enable Always-On Mode:** Go to **Settings > Always-on display & Lock screen > Display items** and choose **"Always"**.
+4. **Install Dimmer Hook:** Install **`AodDimmer.apk`**.
+5. **Activate LSPosed:** Open **LSPosed**, activate **AOD Dimmer** with the **System Framework (`android`)** scope, and soft reboot.
+6. **Tune Preferences:** Open the **AOD Dimmer** app and set your desired **Min Nits** (e.g. 2.0 nits), **Max Nits** (e.g. 30 nits), **Lux Threshold** (e.g. 20%), and **Sensor Throttle** (e.g. 2.0s).
 
 ---
 
 ## 📄 License & Credits
 
 - Developed for the Xiaomi / HyperOS modding community.
-- Built using Xposed API v82 and KernelSU post-fs-data bind-mount architecture.
+- Built using Xposed API v82 and KernelSU MetaModule bind-mount architecture.
