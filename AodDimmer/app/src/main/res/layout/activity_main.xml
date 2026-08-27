@@ -174,6 +174,64 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Lux Change Sensitivity Threshold Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="3dp"
+            app:cardBackgroundColor="@color/surface"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Lux Change Threshold"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:id="@+id/tv_diff_threshold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="20%"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Minimum light change % to trigger brightness adjustment"
+                    android:textSize="12.5sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="3dp"
+                    android:layout_marginBottom="14dp" />
+
+                <SeekBar
+                    android:id="@+id/seekbar_diff_threshold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="45"
+                    android:progress="15" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Sensor Throttle Interval Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
@@ -217,7 +275,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Reduces wakeups &amp; battery drain during AOD"
+                    android:text="Minimum time interval between sensor checks"
                     android:textSize="12.5sp"
                     android:textColor="@color/text_secondary"
                     android:layout_marginTop="3dp"
@@ -235,7 +293,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Settings take effect immediately for new AOD sessions. No reboot required after initial LSPosed activation."
+            android:text="Settings take effect immediately. No reboot required."
             android:textSize="12.5sp"
             android:textColor="@color/text_secondary"
             android:padding="6dp" />

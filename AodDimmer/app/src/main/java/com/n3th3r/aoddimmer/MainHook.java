@@ -42,7 +42,7 @@ public class MainHook implements IXposedHookLoadPackage {
                 lpparam.classLoader
             );
 
-            // A. Sensor Event Throttling (Save CPU wakeups & battery)
+            // A. Sensor Event Throttling & Configurable Lux Shift Trigger
             XposedHelpers.findAndHookMethod(
                 dozeControllerClass,
                 "handleLightSensorEvent",
@@ -59,12 +59,14 @@ public class MainHook implements IXposedHookLoadPackage {
                         long time = (long) param.args[0];
                         float lux = (float) param.args[1];
                         int throttleMs = prefs.getInt("sensor_throttle_ms", 2000);
+                        int diffPercent = prefs.getInt("sensor_diff_threshold_percent", 20);
+                        float diffThreshold = Math.max(0.01f, diffPercent / 100.0f);
 
-                        // If within throttle window and lux hasn't changed significantly (>20%), suppress event
+                        // If within throttle window and lux hasn't changed significantly (> diffThreshold), suppress event
                         if (sLastSensorEventTime > 0 && (time - sLastSensorEventTime) < throttleMs) {
                             if (sLastSensorLux >= 0) {
                                 float diffRatio = Math.abs(lux - sLastSensorLux) / Math.max(1.0f, sLastSensorLux);
-                                if (diffRatio < 0.20f) {
+                                if (diffRatio < diffThreshold) {
                                     // Suppress redundant calculation cycle
                                     param.setResult(null);
                                     return;
@@ -173,7 +175,6 @@ public class MainHook implements IXposedHookLoadPackage {
                         if (stateObj != null) {
                             float brightness = XposedHelpers.getFloatField(stateObj, "mBrightness");
                             if (!Float.isNaN(brightness) && brightness > 0f) {
-                                float userMinNits = prefs.getFloat("min_nits_val", 2.0f);
                                 float userMaxNits = (float) prefs.getInt("max_nits_val", 30);
                                 
                                 // Cap at maximum brightness if it exceeds userMax

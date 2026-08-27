@@ -19,6 +19,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTvMinNits;
     private SeekBar mSeekBarMaxNits;
     private TextView mTvMaxNits;
+    private SeekBar mSeekBarDiffThreshold;
+    private TextView mTvDiffThreshold;
     private SeekBar mSeekBarThrottle;
     private TextView mTvThrottle;
 
@@ -34,6 +36,8 @@ public class MainActivity extends AppCompatActivity {
         mTvMinNits = findViewById(R.id.tv_min_nits);
         mSeekBarMaxNits = findViewById(R.id.seekbar_max_nits);
         mTvMaxNits = findViewById(R.id.tv_max_nits);
+        mSeekBarDiffThreshold = findViewById(R.id.seekbar_diff_threshold);
+        mTvDiffThreshold = findViewById(R.id.tv_diff_threshold);
         mSeekBarThrottle = findViewById(R.id.seekbar_throttle);
         mTvThrottle = findViewById(R.id.tv_throttle_interval);
 
@@ -41,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
         boolean isEnabled = mPrefs.getBoolean("module_enabled", true);
         float minNits = mPrefs.getFloat("min_nits_val", 2.0f);
         int maxNits = mPrefs.getInt("max_nits_val", 30);
+        int diffPercent = mPrefs.getInt("sensor_diff_threshold_percent", 20);
         int throttleMs = mPrefs.getInt("sensor_throttle_ms", 2000);
 
         mSwitchEnabled.setChecked(isEnabled);
@@ -54,6 +59,11 @@ public class MainActivity extends AppCompatActivity {
         int maxProgress = maxNits - 10;
         mSeekBarMaxNits.setProgress(Math.max(0, Math.min(110, maxProgress)));
         mTvMaxNits.setText(maxNits + " nits");
+
+        // Diff Threshold: progress 0..45 corresponds to 5% .. 50%
+        int diffProgress = diffPercent - 5;
+        mSeekBarDiffThreshold.setProgress(Math.max(0, Math.min(45, diffProgress)));
+        mTvDiffThreshold.setText(diffPercent + "%");
 
         // Throttle: progress 0..9 corresponds to 500ms .. 5000ms (500ms steps)
         int throttleProgress = (throttleMs - 500) / 500;
@@ -88,6 +98,22 @@ public class MainActivity extends AppCompatActivity {
                 int val = 10 + progress;
                 mTvMaxNits.setText(val + " nits");
                 mPrefs.edit().putInt("max_nits_val", val).apply();
+                makeWorldReadable();
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        mSeekBarDiffThreshold.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int val = 5 + progress;
+                mTvDiffThreshold.setText(val + "%");
+                mPrefs.edit().putInt("sensor_diff_threshold_percent", val).apply();
                 makeWorldReadable();
             }
 
