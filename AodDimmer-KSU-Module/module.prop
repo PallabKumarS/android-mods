@@ -1,6 +1,0 @@
-id=aod_dimmer_hyperos
-name=AOD Dimmer for HyperOS / MIUI
-version=v1.0.0
-versionCode=100
-author=N3th3rLord
-description=Optimizes Always-On Display (AOD) post-delay dimming, enhances doze auto brightness responsiveness, and applies OLED power savings on Xiaomi/POCO devices running MIUI & HyperOS.
