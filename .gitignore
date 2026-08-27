@@ -1,0 +1,10 @@
+node_modules/
+.gradle/
+build/
+**/build/
+*.log
+*.tmp
+cmdline-tools/
+cmdline-tools.zip
+gradle/
+*.class

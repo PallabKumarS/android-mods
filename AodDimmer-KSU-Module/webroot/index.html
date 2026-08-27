@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AOD Dimmer Control</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="title-row">
+                <div class="icon-circle">🌙</div>
+                <div>
+                    <h1>AOD Dimmer</h1>
+                    <p class="subtitle">HyperOS / MIUI Display Control</p>
+                </div>
+            </div>
+            <div class="badge" id="statusBadge">Active</div>
+        </header>
+
+        <main>
+            <!-- Module Master Switch -->
+            <section class="card">
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Enhanced AOD Dimming</div>
+                        <div class="setting-desc">Enable custom post-delay dimming curve</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="masterSwitch" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Min Dimmed Nits Level -->
+            <section class="card">
+                <div class="card-header">
+                    <span class="card-title">Min Dim Brightness (Steady-State)</span>
+                    <span class="value-chip" id="minNitsValue">2.0 nits</span>
+                </div>
+                <p class="setting-desc">Target brightness level after post-delay dimming kicks in. (Stock default: ~5.0 nits)</p>
+                <div class="slider-container">
+                    <span class="slider-bound">0.5</span>
+                    <input type="range" id="minNitsSlider" min="0.5" max="15.0" step="0.5" value="2.0">
+                    <span class="slider-bound">15.0</span>
+                </div>
+            </section>
+
+            <!-- Max / Initial Doze Nits Level -->
+            <section class="card">
+                <div class="card-header">
+                    <span class="card-title">Initial / Ambient Max Doze</span>
+                    <span class="value-chip" id="maxNitsValue">60 nits</span>
+                </div>
+                <p class="setting-desc">Initial entry brightness before dimming down. (Stock default: 60 nits)</p>
+                <div class="slider-container">
+                    <span class="slider-bound">10</span>
+                    <input type="range" id="maxNitsSlider" min="10" max="120" step="5" value="60">
+                    <span class="slider-bound">120</span>
+                </div>
+            </section>
+
+            <!-- Dimming Delay / Debounce Horizon -->
+            <section class="card">
+                <div class="card-header">
+                    <span class="card-title">Dimming Delay (Debounce)</span>
+                    <span class="value-chip" id="delayValue">1000 ms</span>
+                </div>
+                <p class="setting-desc">Time before AOD transitions from initial to dimmed state. (Stock: 1000 ms)</p>
+                <div class="slider-container">
+                    <span class="slider-bound">200ms</span>
+                    <input type="range" id="delaySlider" min="200" max="3000" step="100" value="1000">
+                    <span class="slider-bound">3000ms</span>
+                </div>
+            </section>
+
+            <!-- System Extra Dim Level -->
+            <section class="card">
+                <div class="card-header">
+                    <span class="card-title">Extra Dim Hardware Floor</span>
+                    <span class="value-chip" id="extraDimValue">60%</span>
+                </div>
+                <p class="setting-desc">Pushes display hardware backlight below standard minimums.</p>
+                <div class="slider-container">
+                    <span class="slider-bound">0%</span>
+                    <input type="range" id="extraDimSlider" min="0" max="90" step="5" value="60">
+                    <span class="slider-bound">90%</span>
+                </div>
+            </section>
+
+            <!-- Actions -->
+            <div class="btn-group">
+                <button class="btn btn-secondary" id="btnReset">Reset Defaults</button>
+                <button class="btn btn-primary" id="btnApply">Save &amp; Apply</button>
+            </div>
+            
+            <div id="toast" class="toast">Settings applied successfully!</div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

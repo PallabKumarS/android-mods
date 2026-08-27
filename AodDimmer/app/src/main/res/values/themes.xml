@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.AodDimmer" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_variant</item>
+        <item name="android:statusBarColor">@color/surface</item>
+    </style>
+</resources>
