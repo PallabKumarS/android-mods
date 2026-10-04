@@ -125,6 +125,18 @@ Once your AOD stays on permanently, `AodDimmer` ensures it stays at the perfect 
 
 ---
 
+## 📥 Downloads
+
+All binaries are available in the [Releases](https://github.com/PallabKumarS/android-mods/releases/latest) tab:
+
+| File | Target ROM | Description | Download |
+| :--- | :--- | :--- | :--- |
+| **`aosp-no-keyboard-chin.zip`** | AOSP 14–17 | KernelSU / Magisk / APatch module to remove keyboard chin and dismiss button. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/aosp-no-keyboard-chin.zip) |
+| **`hyperos-aon-aod.zip`** | HyperOS 1/2/3 | KernelSU / Magisk / APatch module to unlock true Always-On Display. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/hyperos-aon-aod.zip) |
+| **`AodDimmer.apk`** | HyperOS 1/2/3 | Standalone LSPosed module companion app for custom AOD brightness dimming. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/AodDimmer.apk) |
+
+---
+
 ## 📄 License & Credits
 
 - Developed for the Android & Xiaomi modding community.
