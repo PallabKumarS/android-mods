@@ -1,0 +1,6 @@
+id=aosp-no-keyboard-chin
+name=AOSP No Keyboard Chin
+version=1.0
+versionCode=1
+author=PallabKumarS
+description=Removes the keyboard chin padding, down arrow, and IME switcher space on AOSP 17 / Infinity-X ROM.

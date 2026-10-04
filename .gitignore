@@ -1,10 +1,35 @@
+# Dependencies and package managers
 node_modules/
+
+# Gradle and Android build outputs
 .gradle/
 build/
 **/build/
-*.log
-*.tmp
+.cxx/
+local.properties
+gradle/
+
+# Build and binary artifacts
 cmdline-tools/
 cmdline-tools.zip
-gradle/
 *.class
+*.log
+*.tmp
+*.bak
+*.swp
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.iml
+.cproject
+.project
+.settings/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Scratch and temporary media
+screenshots/
