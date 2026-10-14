@@ -17,6 +17,9 @@ cmdline-tools.zip
 *.tmp
 *.bak
 *.swp
+*.idsig
+*.jar
+app_running.png
 
 # IDE and Editor files
 .idea/

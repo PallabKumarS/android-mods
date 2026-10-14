@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="16dp">
 
         <!-- Master Switch Card -->
         <com.google.android.material.card.MaterialCardView
@@ -19,7 +19,7 @@
             app:cardCornerRadius="16dp"
             app:cardElevation="3dp"
             app:cardBackgroundColor="@color/surface"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="14dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -37,7 +37,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Enable AOD Dimmer"
+                        android:text="Master Switch"
                         android:textSize="17sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary" />
@@ -45,7 +45,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Custom dual-curve AOD brightness"
+                        android:text="Enable all display stabilization hooks"
                         android:textSize="13sp"
                         android:textColor="@color/text_secondary"
                         android:layout_marginTop="2dp" />
@@ -58,7 +58,349 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Min Dim Brightness Card -->
+        <!-- Category: Auto-Brightness Stabilizer -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AUTO-BRIGHTNESS STABILIZER (AOSP / CUSTOM ROM)"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            android:layout_marginStart="4dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Night Anti-Runaway Card (Comic / White Screen Guard) -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="3dp"
+            app:cardBackgroundColor="@color/surface"
+            android:layout_marginBottom="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Night Runaway Guard"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Prevents white screen reflection loop at night"
+                            android:textSize="12.5sp"
+                            android:textColor="@color/text_secondary"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_night_guard"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#2C2C2C"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="14dp" />
+
+                <!-- Night Max Brightness Cap -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Night Max Auto-Brightness Cap"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:id="@+id/tv_night_max_cap"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="25%"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Hard limit on auto-brightness in low ambient light"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="10dp" />
+
+                <SeekBar
+                    android:id="@+id/seekbar_night_max_cap"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="40"
+                    android:progress="15" />
+
+                <!-- Dark Ambient Threshold -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="14dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Dark Environment Lux Trigger"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:id="@+id/tv_night_lux_threshold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="25 lux"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ambient light level below which Night Guard engages"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="10dp" />
+
+                <SeekBar
+                    android:id="@+id/seekbar_night_lux_threshold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="55"
+                    android:progress="20" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Daytime Anti-Flicker Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="3dp"
+            app:cardBackgroundColor="@color/surface"
+            android:layout_marginBottom="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Daytime Anti-Flicker &amp; Debounce"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Suppresses rapid sensor jitter and fluctuations"
+                            android:textSize="12.5sp"
+                            android:textColor="@color/text_secondary"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_daytime_anti_flicker"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#2C2C2C"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="14dp" />
+
+                <!-- Lux Change Threshold -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Lux Change Jitter Threshold"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:id="@+id/tv_diff_threshold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="25%"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Minimum % shift required to trigger brightness change"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="10dp" />
+
+                <SeekBar
+                    android:id="@+id/seekbar_diff_threshold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="40"
+                    android:progress="15" />
+
+                <!-- Sensor Throttle Interval -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="14dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Sensor Update Throttle"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:id="@+id/tv_throttle_interval"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="2.0s"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Minimum time between brightness recalculations"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="10dp" />
+
+                <SeekBar
+                    android:id="@+id/seekbar_throttle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="9"
+                    android:progress="3" />
+
+                <!-- EMA Smoothing Switch -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="12dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Smooth Lux Transitions (EMA)"
+                            android:textSize="14sp"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Low-pass filter to smooth sudden stepping"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_smoothing"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Category: Always-On Display (AOD) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ALWAYS-ON DISPLAY (AOD DIMMER)"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            android:layout_marginStart="4dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- AOD Dimmer Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -73,6 +415,49 @@
                 android:orientation="vertical"
                 android:padding="18dp">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Enable AOD Dimmer"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Custom AOD min/max luminance in Doze mode"
+                            android:textSize="12.5sp"
+                            android:textColor="@color/text_secondary"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_aod_enabled"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#2C2C2C"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="14dp" />
+
+                <!-- Min Dim Brightness (Dark Room) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -84,8 +469,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Min Dim Brightness (Dark Room)"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
+                        android:textSize="14sp"
                         android:textColor="@color/text_primary" />
 
                     <TextView
@@ -93,7 +477,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2.0 nits"
-                        android:textSize="15sp"
+                        android:textSize="14sp"
                         android:textStyle="bold"
                         android:textColor="@color/primary" />
                 </LinearLayout>
@@ -101,11 +485,11 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Target brightness when room is dark (Stock: 5.0 nits)"
-                    android:textSize="12.5sp"
+                    android:text="Target AOD brightness when room is dark"
+                    android:textSize="12sp"
                     android:textColor="@color/text_secondary"
-                    android:layout_marginTop="3dp"
-                    android:layout_marginBottom="14dp" />
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="10dp" />
 
                 <SeekBar
                     android:id="@+id/seekbar_min_nits"
@@ -113,45 +497,29 @@
                     android:layout_height="wrap_content"
                     android:max="19"
                     android:progress="3" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-        <!-- Max Ambient Brightness Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
-            app:cardBackgroundColor="@color/surface"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="18dp">
-
+                <!-- Max Ambient Brightness (Lit Room) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="14dp">
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Max Ambient Brightness (Lit Room)"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
+                        android:textSize="14sp"
                         android:textColor="@color/text_primary" />
 
                     <TextView
                         android:id="@+id/tv_max_nits"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="30 nits"
-                        android:textSize="15sp"
+                        android:text="25 nits"
+                        android:textSize="14sp"
                         android:textStyle="bold"
                         android:textColor="@color/primary" />
                 </LinearLayout>
@@ -159,142 +527,26 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Cap for ambient indoor lighting (Stock: 60 nits)"
-                    android:textSize="12.5sp"
+                    android:text="Cap for AOD brightness in indoor lighting"
+                    android:textSize="12sp"
                     android:textColor="@color/text_secondary"
-                    android:layout_marginTop="3dp"
-                    android:layout_marginBottom="14dp" />
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="10dp" />
 
                 <SeekBar
                     android:id="@+id/seekbar_max_nits"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:max="110"
-                    android:progress="20" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Lux Change Sensitivity Threshold Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
-            app:cardBackgroundColor="@color/surface"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="18dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Lux Change Threshold"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary" />
-
-                    <TextView
-                        android:id="@+id/tv_diff_threshold"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="20%"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary" />
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Minimum light change % to trigger brightness adjustment"
-                    android:textSize="12.5sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="3dp"
-                    android:layout_marginBottom="14dp" />
-
-                <SeekBar
-                    android:id="@+id/seekbar_diff_threshold"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:max="45"
                     android:progress="15" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Sensor Throttle Interval Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
-            app:cardBackgroundColor="@color/surface"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="18dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Sensor Update Throttle"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary" />
-
-                    <TextView
-                        android:id="@+id/tv_throttle_interval"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="2.0s"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary" />
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Minimum time interval between sensor checks"
-                    android:textSize="12.5sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="3dp"
-                    android:layout_marginBottom="14dp" />
-
-                <SeekBar
-                    android:id="@+id/seekbar_throttle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:max="9"
-                    android:progress="3" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Settings take effect immediately. No reboot required."
-            android:textSize="12.5sp"
+            android:text="Settings take effect live in system_server. No reboot required."
+            android:textSize="12sp"
             android:textColor="@color/text_secondary"
             android:padding="6dp" />
 

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AOD Dimmer</string>
+    <string name="app_name">AOD &amp; Display Stabilizer</string>
     <string-array name="xposed_scope">
         <item>android</item>
     </string-array>

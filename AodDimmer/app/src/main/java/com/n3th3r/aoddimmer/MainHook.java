@@ -13,9 +13,10 @@ public class MainHook implements IXposedHookLoadPackage {
     private static final String PREF_NAME = "aod_dimmer_prefs";
     private static XSharedPreferences sPrefs;
 
-    // Sensor throttle state
+    // Sensor debouncing and smoothing state
     private static long sLastSensorEventTime = 0;
-    private static float sLastSensorLux = -1.0f;
+    private static float sLastAcceptedLux = -1.0f;
+    private static float sSmoothedLux = -1.0f;
 
     private static XSharedPreferences getPrefs() {
         if (sPrefs == null) {
@@ -33,18 +34,18 @@ public class MainHook implements IXposedHookLoadPackage {
             return;
         }
 
-        XposedBridge.log(TAG + "Initializing AOD Dimmer dual-curve hooks in system_server...");
+        XposedBridge.log(TAG + "Initializing AOD & Auto-Brightness Stabilizer in system_server...");
 
-        // 1. Hook DozeAutoBrightnessController
+        // 1. Hook AOSP AutomaticBrightnessController for Anti-Runaway and Anti-Flicker
         try {
-            Class<?> dozeControllerClass = XposedHelpers.findClass(
-                "com.android.server.display.DozeAutoBrightnessController",
+            Class<?> abcClass = XposedHelpers.findClass(
+                "com.android.server.display.AutomaticBrightnessController",
                 lpparam.classLoader
             );
 
-            // A. Sensor Event Throttling & Configurable Lux Shift Trigger
+            // A. Sensor Event Filtering: Debounce jitter, EMA smoothing, and upward rate-limiting
             XposedHelpers.findAndHookMethod(
-                dozeControllerClass,
+                abcClass,
                 "handleLightSensorEvent",
                 long.class,
                 float.class,
@@ -57,33 +58,52 @@ public class MainHook implements IXposedHookLoadPackage {
                         }
 
                         long time = (long) param.args[0];
-                        float lux = (float) param.args[1];
-                        int throttleMs = prefs.getInt("sensor_throttle_ms", 2000);
-                        int diffPercent = prefs.getInt("sensor_diff_threshold_percent", 20);
-                        float diffThreshold = Math.max(0.01f, diffPercent / 100.0f);
+                        float rawLux = (float) param.args[1];
 
-                        // If within throttle window and lux hasn't changed significantly (> diffThreshold), suppress event
-                        if (sLastSensorEventTime > 0 && (time - sLastSensorEventTime) < throttleMs) {
-                            if (sLastSensorLux >= 0) {
-                                float diffRatio = Math.abs(lux - sLastSensorLux) / Math.max(1.0f, sLastSensorLux);
+                        boolean antiFlicker = prefs.getBoolean("daytime_anti_flicker_enabled", true);
+                        int throttleMs = prefs.getInt("sensor_throttle_ms", 2000);
+                        int diffPercent = prefs.getInt("sensor_diff_threshold_percent", 25);
+                        float diffThreshold = Math.max(0.05f, diffPercent / 100.0f);
+                        boolean smoothing = prefs.getBoolean("lux_smoothing_enabled", true);
+
+                        // Daytime Debouncing / Jitter Suppression
+                        if (antiFlicker && sLastSensorEventTime > 0 && (time - sLastSensorEventTime) < throttleMs) {
+                            if (sLastAcceptedLux >= 0) {
+                                float diffRatio = Math.abs(rawLux - sLastAcceptedLux) / Math.max(1.0f, sLastAcceptedLux);
                                 if (diffRatio < diffThreshold) {
-                                    // Suppress redundant calculation cycle
+                                    // Suppress redundant jitter
                                     param.setResult(null);
                                     return;
                                 }
                             }
                         }
 
+                        // Low-pass EMA filter for silky smooth transitions without flickering
+                        float effectiveLux = rawLux;
+                        if (smoothing) {
+                            if (sSmoothedLux < 0) {
+                                sSmoothedLux = rawLux;
+                            } else {
+                                // Slower upward ramp (0.20), faster downward ramp (0.40)
+                                float alpha = (rawLux > sSmoothedLux) ? 0.20f : 0.40f;
+                                sSmoothedLux = sSmoothedLux + alpha * (rawLux - sSmoothedLux);
+                            }
+                            effectiveLux = sSmoothedLux;
+                        }
+
                         sLastSensorEventTime = time;
-                        sLastSensorLux = lux;
+                        sLastAcceptedLux = effectiveLux;
+                        param.args[1] = effectiveLux;
                     }
                 }
             );
 
-            // B. Recalculate steady-state brightness according to User Min & Max Nits
+            // B. Anti-Runaway Protection: Cap max brightness when reading in dark environments
             XposedHelpers.findAndHookMethod(
-                dozeControllerClass,
+                abcClass,
                 "updateAutoBrightness",
+                boolean.class,
+                boolean.class,
                 new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -92,104 +112,141 @@ public class MainHook implements IXposedHookLoadPackage {
                             return;
                         }
 
+                        if (!prefs.getBoolean("night_anti_runaway_enabled", true)) {
+                            return;
+                        }
+
                         Object thisObj = param.thisObject;
-                        float userMinNits = prefs.getFloat("min_nits_val", 2.0f);
-                        float userMaxNits = (float) prefs.getInt("max_nits_val", 30);
+                        float ambientLux = XposedHelpers.getFloatField(thisObj, "mAmbientLux");
+                        int luxTrigger = prefs.getInt("night_lux_threshold", 25);
 
-                        Object ddc = XposedHelpers.getObjectField(thisObj, "mDisplayDeviceConfig");
-                        if (ddc == null) {
-                            return;
-                        }
+                        // If ambient light is in the dark/night zone (reading comic in dark)
+                        if (ambientLux <= (float) luxTrigger) {
+                            float maxCap = prefs.getInt("night_max_brightness_percent", 25) / 100.0f;
+                            float currentBrightness = XposedHelpers.getFloatField(thisObj, "mScreenAutoBrightness");
 
-                        float currentBrightness = XposedHelpers.getFloatField(thisObj, "mCurrentBrightness");
-                        if (Float.isNaN(currentBrightness) || currentBrightness <= 0f) {
-                            return;
-                        }
+                            if (currentBrightness > maxCap) {
+                                XposedHelpers.setFloatField(thisObj, "mScreenAutoBrightness", maxCap);
+                                try {
+                                    XposedHelpers.setFloatField(thisObj, "mRawScreenAutoBrightness", maxCap);
+                                } catch (Throwable ignored) {}
 
-                        // Convert target nits to float brightness via panel hardware splines
-                        float userMinBrightness = (float) XposedHelpers.callMethod(ddc, "getBrightnessFromNit", userMinNits);
-                        float userMaxBrightness = (float) XposedHelpers.callMethod(ddc, "getBrightnessFromNit", userMaxNits);
-                        float stockMinBrightness = (float) XposedHelpers.callMethod(ddc, "getBrightnessFromNit", 5.0f);
-                        float stockMaxBrightness = (float) XposedHelpers.callMethod(ddc, "getBrightnessFromNit", 60.0f);
-
-                        // Normalize current stock position between 5 nits and 60 nits
-                        float t = 0f;
-                        if (stockMaxBrightness > stockMinBrightness) {
-                            t = (currentBrightness - stockMinBrightness) / (stockMaxBrightness - stockMinBrightness);
-                        }
-
-                        float targetBrightness;
-                        if (t <= 1.0f) {
-                            t = Math.max(0.0f, t);
-                            // Smooth interpolation between user min and user max
-                            targetBrightness = userMinBrightness + t * (userMaxBrightness - userMinBrightness);
-                        } else {
-                            // In high outdoor lux (>60 nits), scale proportionally above userMax
-                            targetBrightness = userMaxBrightness * (currentBrightness / stockMaxBrightness);
-                        }
-
-                        targetBrightness = Math.max(0.0005f, Math.min(1.0f, targetBrightness));
-
-                        // Apply to mCurrentBrightness and mScreenAutoBrightness
-                        XposedHelpers.setFloatField(thisObj, "mCurrentBrightness", targetBrightness);
-
-                        Object lock = XposedHelpers.getObjectField(thisObj, "brightnessLock");
-                        if (lock != null) {
-                            synchronized (lock) {
-                                XposedHelpers.setFloatField(thisObj, "mScreenAutoBrightness", targetBrightness);
+                                XposedBridge.log(TAG + "Night Runaway Guard active: clamped brightness "
+                                    + currentBrightness + " -> " + maxCap + " (ambient=" + ambientLux + " lux)");
                             }
                         }
-
-                        XposedBridge.log(TAG + "AOD Dual-Curve mapped: stock=" + currentBrightness 
-                            + " -> user=" + targetBrightness 
-                            + " [Min: " + userMinNits + " nits, Max: " + userMaxNits + " nits]");
                     }
                 }
             );
 
-            XposedBridge.log(TAG + "Successfully hooked DozeAutoBrightnessController!");
+            XposedBridge.log(TAG + "Successfully hooked AutomaticBrightnessController for AOSP!");
         } catch (Throwable t) {
-            XposedBridge.log(TAG + "Error hooking DozeAutoBrightnessController: " + t.getMessage());
+            XposedBridge.log(TAG + "Could not hook AutomaticBrightnessController: " + t.getMessage());
         }
 
-        // 2. Hook DozeBrightnessStrategy (Global selector guard)
+        // 2. Hook AOSP DozeBrightnessStrategy for Custom ROM AOD Dimming
         try {
-            Class<?> strategyClass = XposedHelpers.findClass(
+            Class<?> dozeStrategyClass = XposedHelpers.findClass(
                 "com.android.server.display.brightness.strategy.DozeBrightnessStrategy",
                 lpparam.classLoader
             );
 
             XposedHelpers.findAndHookMethod(
-                strategyClass,
+                dozeStrategyClass,
                 "updateBrightness",
                 "com.android.server.display.brightness.StrategyExecutionRequest",
                 new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         XSharedPreferences prefs = getPrefs();
-                        if (!prefs.getBoolean("module_enabled", true)) {
+                        if (!prefs.getBoolean("module_enabled", true) || !prefs.getBoolean("aod_dimmer_enabled", true)) {
                             return;
                         }
 
                         Object stateObj = param.getResult();
-                        if (stateObj != null) {
-                            float brightness = XposedHelpers.getFloatField(stateObj, "mBrightness");
-                            if (!Float.isNaN(brightness) && brightness > 0f) {
-                                float userMaxNits = (float) prefs.getInt("max_nits_val", 30);
-                                
-                                // Cap at maximum brightness if it exceeds userMax
-                                Object ddc = XposedHelpers.getObjectField(param.thisObject, "mDisplayDeviceConfig");
-                                if (ddc != null) {
-                                    float maxCap = (float) XposedHelpers.callMethod(ddc, "getBrightnessFromNit", userMaxNits);
-                                    if (brightness > maxCap) {
-                                        XposedHelpers.setFloatField(stateObj, "mBrightness", maxCap);
-                                    }
-                                }
-                            }
+                        if (stateObj == null) {
+                            return;
+                        }
+
+                        float currentBrightness = XposedHelpers.getFloatField(stateObj, "mBrightness");
+                        if (Float.isNaN(currentBrightness) || currentBrightness <= 0f) {
+                            return;
+                        }
+
+                        float userMinNits = prefs.getFloat("min_nits_val", 2.0f);
+                        float userMaxNits = (float) prefs.getInt("max_nits_val", 25);
+
+                        // Normalized fallback ratio: 2 nits ~ 0.015f, 25 nits ~ 0.08f
+                        float minCap = Math.max(0.005f, userMinNits / 150.0f);
+                        float maxCap = Math.max(minCap, userMaxNits / 120.0f);
+
+                        float targetBrightness = Math.max(minCap, Math.min(maxCap, currentBrightness));
+                        XposedHelpers.setFloatField(stateObj, "mBrightness", targetBrightness);
+
+                        XposedBridge.log(TAG + "AOSP Doze Brightness shaped: " + currentBrightness + " -> " + targetBrightness);
+                    }
+                }
+            );
+
+            XposedBridge.log(TAG + "Successfully hooked DozeBrightnessStrategy for AOSP!");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "Could not hook DozeBrightnessStrategy: " + t.getMessage());
+        }
+
+        // 3. Fallback Hook: HyperOS DozeAutoBrightnessController (Dual-ROM compatibility)
+        try {
+            Class<?> hyperosDozeClass = XposedHelpers.findClass(
+                "com.android.server.display.DozeAutoBrightnessController",
+                lpparam.classLoader
+            );
+
+            XposedHelpers.findAndHookMethod(
+                hyperosDozeClass,
+                "handleLightSensorEvent",
+                long.class,
+                float.class,
+                new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        XSharedPreferences prefs = getPrefs();
+                        if (!prefs.getBoolean("module_enabled", true) || !prefs.getBoolean("aod_dimmer_enabled", true)) {
+                            return;
+                        }
+                        long time = (long) param.args[0];
+                        float lux = (float) param.args[1];
+                        int throttleMs = prefs.getInt("sensor_throttle_ms", 2000);
+                        if (sLastSensorEventTime > 0 && (time - sLastSensorEventTime) < throttleMs) {
+                            param.setResult(null);
                         }
                     }
                 }
             );
+
+            XposedHelpers.findAndHookMethod(
+                hyperosDozeClass,
+                "updateAutoBrightness",
+                new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                        XSharedPreferences prefs = getPrefs();
+                        if (!prefs.getBoolean("module_enabled", true) || !prefs.getBoolean("aod_dimmer_enabled", true)) {
+                            return;
+                        }
+                        Object thisObj = param.thisObject;
+                        float userMinNits = prefs.getFloat("min_nits_val", 2.0f);
+                        float userMaxNits = (float) prefs.getInt("max_nits_val", 25);
+                        Object ddc = XposedHelpers.getObjectField(thisObj, "mDisplayDeviceConfig");
+                        if (ddc != null) {
+                            float minB = (float) XposedHelpers.callMethod(ddc, "getBrightnessFromNit", userMinNits);
+                            float maxB = (float) XposedHelpers.callMethod(ddc, "getBrightnessFromNit", userMaxNits);
+                            float cur = XposedHelpers.getFloatField(thisObj, "mCurrentBrightness");
+                            float target = Math.max(minB, Math.min(maxB, cur));
+                            XposedHelpers.setFloatField(thisObj, "mCurrentBrightness", target);
+                        }
+                    }
+                }
+            );
+            XposedBridge.log(TAG + "Successfully hooked HyperOS DozeAutoBrightnessController fallback!");
         } catch (Throwable ignored) {}
     }
 }

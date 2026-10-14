@@ -14,15 +14,31 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String PREF_NAME = "aod_dimmer_prefs";
     private SharedPreferences mPrefs;
-    private SwitchCompat mSwitchEnabled;
-    private SeekBar mSeekBarMinNits;
-    private TextView mTvMinNits;
-    private SeekBar mSeekBarMaxNits;
-    private TextView mTvMaxNits;
+
+    // Master
+    private SwitchCompat mSwitchMaster;
+
+    // Night Anti-Runaway
+    private SwitchCompat mSwitchNightGuard;
+    private SeekBar mSeekBarNightMaxCap;
+    private TextView mTvNightMaxCap;
+    private SeekBar mSeekBarNightLuxThreshold;
+    private TextView mTvNightLuxThreshold;
+
+    // Daytime Anti-Flicker
+    private SwitchCompat mSwitchDaytimeAntiFlicker;
     private SeekBar mSeekBarDiffThreshold;
     private TextView mTvDiffThreshold;
     private SeekBar mSeekBarThrottle;
     private TextView mTvThrottle;
+    private SwitchCompat mSwitchSmoothing;
+
+    // AOD Dimmer
+    private SwitchCompat mSwitchAodEnabled;
+    private SeekBar mSeekBarMinNits;
+    private TextView mTvMinNits;
+    private SeekBar mSeekBarMaxNits;
+    private TextView mTvMaxNits;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,100 +47,119 @@ public class MainActivity extends AppCompatActivity {
 
         mPrefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
 
-        mSwitchEnabled = findViewById(R.id.switch_enabled);
-        mSeekBarMinNits = findViewById(R.id.seekbar_min_nits);
-        mTvMinNits = findViewById(R.id.tv_min_nits);
-        mSeekBarMaxNits = findViewById(R.id.seekbar_max_nits);
-        mTvMaxNits = findViewById(R.id.tv_max_nits);
+        // Bind Views
+        mSwitchMaster = findViewById(R.id.switch_enabled);
+
+        mSwitchNightGuard = findViewById(R.id.switch_night_guard);
+        mSeekBarNightMaxCap = findViewById(R.id.seekbar_night_max_cap);
+        mTvNightMaxCap = findViewById(R.id.tv_night_max_cap);
+        mSeekBarNightLuxThreshold = findViewById(R.id.seekbar_night_lux_threshold);
+        mTvNightLuxThreshold = findViewById(R.id.tv_night_lux_threshold);
+
+        mSwitchDaytimeAntiFlicker = findViewById(R.id.switch_daytime_anti_flicker);
         mSeekBarDiffThreshold = findViewById(R.id.seekbar_diff_threshold);
         mTvDiffThreshold = findViewById(R.id.tv_diff_threshold);
         mSeekBarThrottle = findViewById(R.id.seekbar_throttle);
         mTvThrottle = findViewById(R.id.tv_throttle_interval);
+        mSwitchSmoothing = findViewById(R.id.switch_smoothing);
 
-        // Load saved preferences
-        boolean isEnabled = mPrefs.getBoolean("module_enabled", true);
-        float minNits = mPrefs.getFloat("min_nits_val", 2.0f);
-        int maxNits = mPrefs.getInt("max_nits_val", 30);
-        int diffPercent = mPrefs.getInt("sensor_diff_threshold_percent", 20);
+        mSwitchAodEnabled = findViewById(R.id.switch_aod_enabled);
+        mSeekBarMinNits = findViewById(R.id.seekbar_min_nits);
+        mTvMinNits = findViewById(R.id.tv_min_nits);
+        mSeekBarMaxNits = findViewById(R.id.seekbar_max_nits);
+        mTvMaxNits = findViewById(R.id.tv_max_nits);
+
+        // Load values
+        boolean masterEnabled = mPrefs.getBoolean("module_enabled", true);
+        boolean nightGuardEnabled = mPrefs.getBoolean("night_anti_runaway_enabled", true);
+        int nightMaxCap = mPrefs.getInt("night_max_brightness_percent", 25);
+        int nightLuxThreshold = mPrefs.getInt("night_lux_threshold", 25);
+
+        boolean daytimeAntiFlicker = mPrefs.getBoolean("daytime_anti_flicker_enabled", true);
+        int diffPercent = mPrefs.getInt("sensor_diff_threshold_percent", 25);
         int throttleMs = mPrefs.getInt("sensor_throttle_ms", 2000);
+        boolean smoothingEnabled = mPrefs.getBoolean("lux_smoothing_enabled", true);
 
-        mSwitchEnabled.setChecked(isEnabled);
+        boolean aodEnabled = mPrefs.getBoolean("aod_dimmer_enabled", true);
+        float minNits = mPrefs.getFloat("min_nits_val", 2.0f);
+        int maxNits = mPrefs.getInt("max_nits_val", 25);
 
-        // Min nits: progress 0..19 corresponds to 0.5 .. 10.0 nits
-        int minProgress = Math.round((minNits - 0.5f) / 0.5f);
-        mSeekBarMinNits.setProgress(Math.max(0, Math.min(19, minProgress)));
-        mTvMinNits.setText(String.format("%.1f nits", minNits));
+        // Populate UI
+        mSwitchMaster.setChecked(masterEnabled);
 
-        // Max nits: progress 0..110 corresponds to 10 .. 120 nits
-        int maxProgress = maxNits - 10;
-        mSeekBarMaxNits.setProgress(Math.max(0, Math.min(110, maxProgress)));
-        mTvMaxNits.setText(maxNits + " nits");
+        mSwitchNightGuard.setChecked(nightGuardEnabled);
+        mSeekBarNightMaxCap.setProgress(Math.max(0, Math.min(40, nightMaxCap - 10)));
+        mTvNightMaxCap.setText(nightMaxCap + "%");
 
-        // Diff Threshold: progress 0..45 corresponds to 5% .. 50%
-        int diffProgress = diffPercent - 5;
-        mSeekBarDiffThreshold.setProgress(Math.max(0, Math.min(45, diffProgress)));
+        mSeekBarNightLuxThreshold.setProgress(Math.max(0, Math.min(55, nightLuxThreshold - 5)));
+        mTvNightLuxThreshold.setText(nightLuxThreshold + " lux");
+
+        mSwitchDaytimeAntiFlicker.setChecked(daytimeAntiFlicker);
+        mSeekBarDiffThreshold.setProgress(Math.max(0, Math.min(40, diffPercent - 10)));
         mTvDiffThreshold.setText(diffPercent + "%");
 
-        // Throttle: progress 0..9 corresponds to 500ms .. 5000ms (500ms steps)
         int throttleProgress = (throttleMs - 500) / 500;
         mSeekBarThrottle.setProgress(Math.max(0, Math.min(9, throttleProgress)));
         mTvThrottle.setText(String.format("%.1fs", throttleMs / 1000.0f));
 
-        mSwitchEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> {
+        mSwitchSmoothing.setChecked(smoothingEnabled);
+
+        mSwitchAodEnabled.setChecked(aodEnabled);
+        int minProgress = Math.round((minNits - 0.5f) / 0.5f);
+        mSeekBarMinNits.setProgress(Math.max(0, Math.min(19, minProgress)));
+        mTvMinNits.setText(String.format("%.1f nits", minNits));
+
+        mSeekBarMaxNits.setProgress(Math.max(0, Math.min(110, maxNits - 10)));
+        mTvMaxNits.setText(maxNits + " nits");
+
+        // Listeners
+        mSwitchMaster.setOnCheckedChangeListener((btn, isChecked) -> {
             mPrefs.edit().putBoolean("module_enabled", isChecked).apply();
             makeWorldReadable();
-            Toast.makeText(this, isChecked ? "AOD Dimmer Enabled" : "AOD Dimmer Disabled", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, isChecked ? "Display Stabilizer Enabled" : "Display Stabilizer Disabled", Toast.LENGTH_SHORT).show();
         });
 
-        mSeekBarMinNits.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                float val = 0.5f + progress * 0.5f;
-                mTvMinNits.setText(String.format("%.1f nits", val));
-                mPrefs.edit().putFloat("min_nits_val", val).apply();
-                makeWorldReadable();
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+        mSwitchNightGuard.setOnCheckedChangeListener((btn, isChecked) -> {
+            mPrefs.edit().putBoolean("night_anti_runaway_enabled", isChecked).apply();
+            makeWorldReadable();
         });
 
-        mSeekBarMaxNits.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        mSeekBarNightMaxCap.setOnSeekBarChangeListener(new SimpleSeekBarListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 int val = 10 + progress;
-                mTvMaxNits.setText(val + " nits");
-                mPrefs.edit().putInt("max_nits_val", val).apply();
+                mTvNightMaxCap.setText(val + "%");
+                mPrefs.edit().putInt("night_max_brightness_percent", val).apply();
                 makeWorldReadable();
             }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        mSeekBarDiffThreshold.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        mSeekBarNightLuxThreshold.setOnSeekBarChangeListener(new SimpleSeekBarListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 int val = 5 + progress;
+                mTvNightLuxThreshold.setText(val + " lux");
+                mPrefs.edit().putInt("night_lux_threshold", val).apply();
+                makeWorldReadable();
+            }
+        });
+
+        mSwitchDaytimeAntiFlicker.setOnCheckedChangeListener((btn, isChecked) -> {
+            mPrefs.edit().putBoolean("daytime_anti_flicker_enabled", isChecked).apply();
+            makeWorldReadable();
+        });
+
+        mSeekBarDiffThreshold.setOnSeekBarChangeListener(new SimpleSeekBarListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int val = 10 + progress;
                 mTvDiffThreshold.setText(val + "%");
                 mPrefs.edit().putInt("sensor_diff_threshold_percent", val).apply();
                 makeWorldReadable();
             }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        mSeekBarThrottle.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        mSeekBarThrottle.setOnSeekBarChangeListener(new SimpleSeekBarListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 int ms = 500 + progress * 500;
@@ -132,12 +167,36 @@ public class MainActivity extends AppCompatActivity {
                 mPrefs.edit().putInt("sensor_throttle_ms", ms).apply();
                 makeWorldReadable();
             }
+        });
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
+        mSwitchSmoothing.setOnCheckedChangeListener((btn, isChecked) -> {
+            mPrefs.edit().putBoolean("lux_smoothing_enabled", isChecked).apply();
+            makeWorldReadable();
+        });
 
+        mSwitchAodEnabled.setOnCheckedChangeListener((btn, isChecked) -> {
+            mPrefs.edit().putBoolean("aod_dimmer_enabled", isChecked).apply();
+            makeWorldReadable();
+        });
+
+        mSeekBarMinNits.setOnSeekBarChangeListener(new SimpleSeekBarListener() {
             @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                float val = 0.5f + progress * 0.5f;
+                mTvMinNits.setText(String.format("%.1f nits", val));
+                mPrefs.edit().putFloat("min_nits_val", val).apply();
+                makeWorldReadable();
+            }
+        });
+
+        mSeekBarMaxNits.setOnSeekBarChangeListener(new SimpleSeekBarListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int val = 10 + progress;
+                mTvMaxNits.setText(val + " nits");
+                mPrefs.edit().putInt("max_nits_val", val).apply();
+                makeWorldReadable();
+            }
         });
 
         makeWorldReadable();
@@ -154,5 +213,13 @@ public class MainActivity extends AppCompatActivity {
                 prefFile.setExecutable(true, false);
             }
         } catch (Exception ignored) {}
+    }
+
+    private static abstract class SimpleSeekBarListener implements SeekBar.OnSeekBarChangeListener {
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) {}
+
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) {}
     }
 }
