@@ -1,0 +1,6 @@
+id=tricky_store_aio
+name=Tricky Store (Plug & Play)
+version=v1.4.1-StrongKeybox
+versionCode=24501
+author=5ec1cff, aviraxp & N3th3r
+description=Pre-configured Tricky Store with embedded Strong Integrity Keybox, optimal target list, and auto security patch detection.
