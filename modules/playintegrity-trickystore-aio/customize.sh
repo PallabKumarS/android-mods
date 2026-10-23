@@ -33,7 +33,7 @@ if [ "$API" -lt $MIN_SDK ]; then
   abort "! Minimal supported SDK is $MIN_SDK (current: $API)"
 fi
 
-# 1. PIF Zygisk Setup
+# 1. PIF Setup & Fresh Canary Fingerprint
 ui_print "- Configuring Play Integrity Fork (Basic & Device Integrity)"
 if [ -d "$MODPATH/zygisk" ]; then
     . $MODPATH/common_func.sh
@@ -43,11 +43,22 @@ fi
 rm -f /data/data/com.google.android.gms/cache/pif.prop /data/data/com.google.android.gms/pif.prop \
     /data/data/com.google.android.gms/cache/pif.json /data/data/com.google.android.gms/pif.json 2>/dev/null || true
 
+# Deploy fresh Pixel Canary fingerprint
+if [ -f "$MODPATH/custom.pif.prop" ]; then
+  ui_print "- Deploying active Pixel 9 Pro Canary build fingerprint"
+  cp -f "$MODPATH/custom.pif.prop" /data/adb/pif.prop
+  cp -f "$MODPATH/custom.pif.prop" "$MODPATH/pif.prop"
+fi
+if [ -f "$MODPATH/custom.pif.json" ]; then
+  cp -f "$MODPATH/custom.pif.json" /data/adb/pif.json
+  cp -f "$MODPATH/custom.pif.json" "$MODPATH/pif.json"
+fi
+
 # 2. Tricky Store Engine Setup
 ui_print "- Configuring Tricky Store Engine (Strong Integrity)"
 chmod 755 "$MODPATH/daemon" 2>/dev/null || true
 if [ -f "$MODPATH/machikado.$ARCH" ]; then
-  mv "$MODPATH/machikado.$ARCH" "$MODPATH/machikado" 2>/dev/null || true
+  cp -f "$MODPATH/machikado.$ARCH" "$MODPATH/machikado" 2>/dev/null || true
 fi
 
 # Link/copy architecture library
@@ -86,6 +97,10 @@ fi
 if [ -d "/sdcard/InfinityResources" ]; then
   cp -f "$CONFIG_DIR/keybox.xml" "/sdcard/InfinityResources/keybox.xml" 2>/dev/null || true
 fi
+
+for pid in $(pidof com.google.android.gms.unstable com.android.vending 2>/dev/null); do
+  kill -9 "$pid" 2>/dev/null || true
+done
 
 ui_print "- All-in-One Play Integrity Suite installed successfully"
 ui_print "- Device & Strong Integrity active upon reboot"

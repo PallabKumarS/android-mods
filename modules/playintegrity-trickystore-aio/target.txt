@@ -1,2 +1,6 @@
 com.google.android.gms
 com.android.vending
+gr.nikolasspyr.integritycheck
+com.microsoft.windowsintune.companyportal
+com.azure.authenticator
+io.github.vvb2060.keyattestation
