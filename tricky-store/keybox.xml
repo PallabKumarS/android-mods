@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <AndroidAttestation>
     <NumberOfKeyboxes>1</NumberOfKeyboxes>
-    <Keybox DeviceID="t.me/keyboxstrong @evokerr">
+    <Keybox DeviceID="tee_keybox">
         <Key algorithm="ecdsa">
             <PrivateKey format="pem">
 -----BEGIN EC PRIVATE KEY-----
@@ -85,7 +85,7 @@
                 </Certificate>
             </CertificateChain>
         </Key>
-        <Key algorithm="@evokerr">
+        <Key algorithm="rsa">
             <PrivateKey format="pem">
 -----BEGIN RSA PRIVATE KEY-----
                 MIIG5AIBAAKCAYEA2YTTtOSfK9w/9Kr06T9g2FndJAyI5mRc5Y+TZAn8kC8RhKUJ
@@ -227,5 +227,5 @@
                 </Certificate>
             </CertificateChain>
         </Key>
-    </Keybox>                                                                                                                        <!--Telegram@evokerr t.me/keyboxstrong-->
+    </Keybox>                                                                                                                        
 </AndroidAttestation>

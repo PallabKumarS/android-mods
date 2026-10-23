@@ -43,16 +43,18 @@ fi
 rm -f /data/data/com.google.android.gms/cache/pif.prop /data/data/com.google.android.gms/pif.prop \
     /data/data/com.google.android.gms/cache/pif.json /data/data/com.google.android.gms/pif.json 2>/dev/null || true
 
-# Deploy fresh Pixel Canary fingerprint
-if [ -f "$MODPATH/custom.pif.prop" ]; then
-  ui_print "- Deploying active Pixel 9 Pro Canary build fingerprint"
-  cp -f "$MODPATH/custom.pif.prop" /data/adb/pif.prop
-  cp -f "$MODPATH/custom.pif.prop" "$MODPATH/pif.prop"
-fi
-if [ -f "$MODPATH/custom.pif.json" ]; then
-  cp -f "$MODPATH/custom.pif.json" /data/adb/pif.json
-  cp -f "$MODPATH/custom.pif.json" "$MODPATH/pif.json"
-fi
+# Deploy fresh Pixel Canary fingerprint to all relevant paths
+for pif_dir in "/data/adb" "$MODPATH" "/data/adb/modules/playintegrityfix" "/data/adb/modules/playintegrity_trickystore_aio"; do
+  mkdir -p "$pif_dir" 2>/dev/null || true
+  if [ -f "$MODPATH/custom.pif.prop" ]; then
+    cp -f "$MODPATH/custom.pif.prop" "$pif_dir/custom.pif.prop" 2>/dev/null || true
+    cp -f "$MODPATH/custom.pif.prop" "$pif_dir/pif.prop" 2>/dev/null || true
+  fi
+  if [ -f "$MODPATH/custom.pif.json" ]; then
+    cp -f "$MODPATH/custom.pif.json" "$pif_dir/custom.pif.json" 2>/dev/null || true
+    cp -f "$MODPATH/custom.pif.json" "$pif_dir/pif.json" 2>/dev/null || true
+  fi
+done
 
 # 2. Tricky Store Engine Setup
 ui_print "- Configuring Tricky Store Engine (Strong Integrity)"
@@ -87,12 +89,24 @@ if [ -f "$MODPATH/target.txt" ]; then
   chmod 0644 "$CONFIG_DIR/target.txt"
 fi
 
+PIF_PATCH=""
+if [ -f "$MODPATH/custom.pif.prop" ]; then
+  PIF_PATCH=$(grep "^SECURITY_PATCH=" "$MODPATH/custom.pif.prop" | head -n 1 | cut -d= -f2 | tr -d '\r\n ')
+fi
 PATCH_DATE=$(getprop ro.build.version.security_patch)
-if [ -n "$PATCH_DATE" ]; then
+
+if [ -n "$PIF_PATCH" ]; then
+  ui_print "- Synchronizing Security Patch with PIF: $PIF_PATCH"
+  echo "$PIF_PATCH" > "$CONFIG_DIR/security_patch.txt"
+  chmod 0644 "$CONFIG_DIR/security_patch.txt"
+elif [ -n "$PATCH_DATE" ]; then
   ui_print "- Auto-detected Security Patch: $PATCH_DATE"
   echo "$PATCH_DATE" > "$CONFIG_DIR/security_patch.txt"
   chmod 0644 "$CONFIG_DIR/security_patch.txt"
 fi
+
+rm -rf /data/data/com.google.android.gms/app_dg_cache* 2>/dev/null || true
+rm -rf /data/user_de/0/com.google.android.gms/app_dg_cache* 2>/dev/null || true
 
 if [ -d "/sdcard/InfinityResources" ]; then
   cp -f "$CONFIG_DIR/keybox.xml" "/sdcard/InfinityResources/keybox.xml" 2>/dev/null || true

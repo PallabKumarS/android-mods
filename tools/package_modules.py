@@ -28,13 +28,17 @@ def zip_dir(src_dir: str, output_zip: str):
     print(f"Created: {output_zip} ({os.path.getsize(output_zip)} bytes)")
 
 def push_to_device(zip_path: str):
-    target = f"/sdcard/Modules/{os.path.basename(zip_path)}"
-    print(f"Pushing to device: {target}...")
-    res = subprocess.run(["adb", "push", zip_path, target], capture_output=True, text=True)
-    if res.returncode == 0:
-        print(f"Pushed successfully: {target}")
-    else:
-        print(f"Failed to push {target}: {res.stderr}")
+    targets = [
+        f"/sdcard/Modules/{os.path.basename(zip_path)}",
+        f"/sdcard/Download/{os.path.basename(zip_path)}",
+    ]
+    for target in targets:
+        print(f"Pushing to device: {target}...")
+        res = subprocess.run(["adb", "push", zip_path, target], capture_output=True, text=True)
+        if res.returncode == 0:
+            print(f"Pushed successfully: {target}")
+        else:
+            print(f"Failed to push {target}: {res.stderr}")
 
 def main():
     for pkg in PACKAGES:
