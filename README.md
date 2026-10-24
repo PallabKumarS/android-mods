@@ -8,6 +8,7 @@ A collection of systemless modifications, KernelSU / Magisk modules, and LSPosed
 
 | Component | Target System | Type | Primary Purpose |
 | :--- | :--- | :--- | :--- |
+| **`IntuneBypass.apk`** | All Rooted Android (10–17) | Standalone LSPosed / Vector Module | **Microsoft Intune & MAM Compliance Bypass** (Dynamic runtime bypass for Company Portal, Teams, Outlook, and Authenticator without modifying APKs). |
 | **`PlayIntegrity-TrickyStore-AIO.zip`** | HyperOS / MIUI & Clean AOSP | KernelSU / Magisk Module | **All-in-One Play Integrity Suite** (Combines Play Integrity Fork v18 and Tricky Store v1.4.1 with pre-installed Strong Keybox for 3-tier pass). |
 | **`TrickyStore-StrongIntegrity.zip`** | Custom ROMs (Infinity-X, Evolution X) | KernelSU / Magisk Module | **Plug & Play Tricky Store** (Official Tricky Store v1.4.1 pre-configured with Strong Keybox and auto-detected security patch). |
 | **`AodDimmer.apk`** | HyperOS & AOSP 14–17 | Standalone LSPosed Module | **Intelligent Brightness & Display Stabilizer** (AOD nits shaping, daytime sensor anti-flicker smoothing, and night white-bg anti-runaway cap). |
@@ -16,7 +17,49 @@ A collection of systemless modifications, KernelSU / Magisk modules, and LSPosed
 
 ---
 
-## Component 1: `PlayIntegrity-TrickyStore-AIO.zip` (All-in-One Play Integrity Suite)
+## Component 1: `IntuneBypass.apk` (Microsoft Intune & MAM Compliance Bypass)
+
+### What It Does
+Enables Microsoft Intune Company Portal and Intune-protected work apps (Microsoft Teams, Microsoft Outlook, Microsoft Authenticator, Edge, OneDrive, Office) to pass App Protection Policy (MAM) and Device Health compliance checks on rooted Android devices **without touching or modifying the target APKs**.
+
+### How It Works Internally
+- **Multi-ClassLoader Dynamic Hooking:** Intercepts `BaseDexClassLoader` construction and `ContextWrapper.createPackageContext` so hooks attach automatically to both the host application's secondary dynamic DEX loaders and the remote `com.microsoft.windowsintune.companyportal` MAM plugin context—without disturbing `@CallerSensitive` `Class.forName` stack frames.
+- **MAM IPC & Policy Endpoint Overrides:** Hooks `DeviceOriginContentProvider.call` (`Origin = 0`), `InstrumentationCheck.isStepDebugged`, `AbstractAppPolicyEndpoint`, `MDMAppPolicyEndpoint`, `AppPolicyEndpointProxy`, and `AppPolicyEndpointWrapper` with exact Dalvik branch polarities (`checkOrigin = false`, `getDeviceOrigin = 0`, `shouldPerformInHouseOriginCheck = false`, `shouldPerformSafetyNetCheck = false`, `getIsDeviceRooted = false`, `isDeviceRooted = false`, `getOfflineRootDefenseLevel = 0`).
+- **Compliance Verdict & UI Gate:** Overrides `PolicyChecker`, `ComplianceVerdictManagerImpl` (`ComplianceVerdict.COMPLIANT`), and `ConditionalLaunchGetAccessFragment` (`ConditionalLaunchAction.NONE` + `ComplianceStatus.COMPLIANCE_SUCCESS` + `areAllPolicyBucketsCompliant = true`).
+- **DexGuard RASP & Xposed Detector Neutralization:** Neutralizes in-house origin bitmask aggregators (`o.accessgetEditLockp`, `o.safeValue`, `o.UiExecutor`, `o.putSync`, `o.pushTrace`), Xposed stack/class detectors (`o.TransportBackend`, `o.JsonIOException`), and DexGuard RASP callbacks (`o.FirebaseNetworkException`).
+
+### What You Need (Prerequisites)
+- **Root Manager:** KernelSU / KernelSU Next, Magisk, or APatch (keep **Unmount modules** enabled for target Microsoft apps in KernelSU Manager).
+- **Xposed Framework:** **Vector (LSPosed)** or **LSPosed** (Zygisk).
+- **HMA (Hide My Applist) is NOT required:** Because `IntuneBypass.apk` intercepts the origin checks, RASP callbacks, and policy verdicts directly in memory, you do not need HMA for Teams, Outlook, or Company Portal.
+- **Play Integrity (Optional but Recommended):** Keep `PlayIntegrity-TrickyStore-AIO.zip` (or `TrickyStore-StrongIntegrity.zip`) active if your organization also requires full MDM Device Enrollment via Google Play Services.
+
+### Installation & Scope Configuration
+
+#### Method A: Via LSPosed / Vector Manager UI
+1. Download and install **`IntuneBypass.apk`**.
+2. Open **Vector / LSPosed Manager** -> **Modules** -> enable **Intune & MAM Compliance Bypass**.
+3. Check the following apps in the module scope:
+   - **Intune Company Portal** (`com.microsoft.windowsintune.companyportal`) — **Required** (hosts the MAM policy engine)
+   - **Microsoft Teams** (`com.microsoft.teams`)
+   - **Microsoft Outlook** (`com.microsoft.office.outlook`)
+   - **Microsoft Authenticator** (`com.azure.authenticator`)
+   - *(Plus any other Intune-protected Microsoft work app you use)*
+4. Force-stop **Company Portal** and **Teams** (do **not** clear app data), then open **Teams**.
+5. On the **Get Access** screen, tap **CONTINUE** to proceed directly into your workspace.
+
+#### Method B: Via ADB / Root CLI (Vector v2+)
+```bash
+# Install module
+adb install -r IntuneBypass.apk
+
+# Enable module and configure scope via Vector CLI
+adb shell "su -c '/data/adb/lspd/cli modules enable com.n3th3r.intunebypass && /data/adb/lspd/cli scope set com.n3th3r.intunebypass com.microsoft.windowsintune.companyportal/0 com.microsoft.teams/0 com.microsoft.office.outlook/0 com.azure.authenticator/0 && am force-stop com.microsoft.windowsintune.companyportal && am force-stop com.microsoft.teams'"
+```
+
+---
+
+## Component 2: `PlayIntegrity-TrickyStore-AIO.zip` (All-in-One Play Integrity Suite)
 
 ### The Problem on Unlocked Bootloaders & Stock/Clean ROMs
 On modern Android (especially HyperOS or clean AOSP without native spoofing), an unlocked bootloader causes Google Play Integrity to fail:
@@ -37,7 +80,7 @@ This unified module combines two independent engines into a single flashable pac
 
 ---
 
-## Component 2: `TrickyStore-StrongIntegrity.zip` (Plug & Play Keystore Spoofer)
+## Component 3: `TrickyStore-StrongIntegrity.zip` (Plug & Play Keystore Spoofer)
 
 ### Target Use Case
 Feature-rich custom ROMs (such as Project Infinity-X, Evolution X, and CrDroid) already have Play Integrity Fork / property spoofing built into the system framework to pass Basic and Device integrity. Flashing a second Zygisk spoofer is redundant.
@@ -50,7 +93,7 @@ Feature-rich custom ROMs (such as Project Infinity-X, Evolution X, and CrDroid) 
 
 ---
 
-## Component 3: `AodDimmer.apk` (AOD Dimmer & Display Auto-Brightness Stabilizer)
+## Component 4: `AodDimmer.apk` (AOD Dimmer & Display Auto-Brightness Stabilizer)
 
 ### Key Features
 - **AOSP 14–17 Display Auto-Brightness Stabilizer:**
@@ -72,7 +115,7 @@ Feature-rich custom ROMs (such as Project Infinity-X, Evolution X, and CrDroid) 
 
 ---
 
-## Component 4: `aosp-no-keyboard-chin.zip` (AOSP Keyboard Chin & Down Arrow Remover)
+## Component 5: `aosp-no-keyboard-chin.zip` (AOSP Keyboard Chin & Down Arrow Remover)
 
 ### What It Does
 Eliminates the dead navigation space and down-arrow spacer beneath soft keyboards on AOSP and custom ROMs with gesture navigation enabled.
@@ -91,7 +134,7 @@ adb shell settings put secure navbar_ime_space 1
 
 ---
 
-## Component 5: `hyperos-aon-aod.zip` (HyperOS AOD Feature-Gate Unlocker)
+## Component 6: `hyperos-aon-aod.zip` (HyperOS AOD Feature-Gate Unlocker)
 
 ### What It Does
 Systemlessly removes Xiaomi's 10-second AOD restriction on AMOLED devices running HyperOS 1.0–3.0 / MIUI 14.
@@ -118,6 +161,7 @@ All pre-built binaries and flashable packages are published under [Releases](htt
 
 | File | Target System | Description | Download |
 | :--- | :--- | :--- | :--- |
+| **`IntuneBypass.apk`** | All Rooted Android (10–17) | Standalone LSPosed / Vector module to bypass Intune MAM & Company Portal root/RASP detection. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/IntuneBypass.apk) |
 | **`PlayIntegrity-TrickyStore-AIO.zip`** | HyperOS & Clean AOSP | All-in-one suite: Play Integrity Fork v18 + Tricky Store v1.4.1 + Strong Keybox. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/PlayIntegrity-TrickyStore-AIO.zip) |
 | **`TrickyStore-StrongIntegrity.zip`** | Custom ROMs (Infinity-X, etc.) | Standalone Tricky Store v1.4.1 pre-loaded with Strong Keybox and auto security patch. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/TrickyStore-StrongIntegrity.zip) |
 | **`AodDimmer.apk`** | HyperOS & AOSP 14–17 | LSPosed module companion app for AOD dimming and auto-brightness stabilizer. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/AodDimmer.apk) |

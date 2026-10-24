@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="xposed_scope">
+        <item>com.microsoft.windowsintune.companyportal</item>
+        <item>com.microsoft.teams</item>
+        <item>com.microsoft.office.outlook</item>
+        <item>com.azure.authenticator</item>
+        <item>com.microsoft.emmx</item>
+        <item>com.microsoft.skydrive</item>
+        <item>com.microsoft.office.officehubrow</item>
+        <item>com.microsoft.office.word</item>
+        <item>com.microsoft.office.excel</item>
+        <item>com.microsoft.office.powerpoint</item>
+        <item>com.microsoft.office.onenote</item>
+    </string-array>
+</resources>
