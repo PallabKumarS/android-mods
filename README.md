@@ -9,6 +9,7 @@ A collection of systemless modifications, KernelSU / Magisk modules, and LSPosed
 | Component | Target System | Type | Primary Purpose |
 | :--- | :--- | :--- | :--- |
 | **`IntuneBypass.apk`** | All Rooted Android (10–17) | Standalone LSPosed / Vector Module | **Microsoft Intune & MAM Compliance Bypass** (Dynamic runtime bypass for Company Portal, Teams, Outlook, and Authenticator without modifying APKs). |
+| **`PasskeyEnabler.apk`** | HyperOS 1.0–3.0 & Android 14–17 | Standalone LSPosed / Vector Module + Boot Service | **HyperOS Passkey & Third-Party Credential Provider Enabler** (Unlocks Bitwarden, 1Password, Proton Pass as system passkey providers, unmasks stripped AOSP Credential Provider settings, and forces Chrome 3rd-party passkey routing). |
 | **`PlayIntegrity-TrickyStore-AIO.zip`** | HyperOS / MIUI & Clean AOSP | KernelSU / Magisk Module | **All-in-One Play Integrity Suite** (Combines Play Integrity Fork v18 and Tricky Store v1.4.1 with pre-installed Strong Keybox for 3-tier pass). |
 | **`TrickyStore-StrongIntegrity.zip`** | Custom ROMs (Infinity-X, Evolution X) | KernelSU / Magisk Module | **Plug & Play Tricky Store** (Official Tricky Store v1.4.1 pre-configured with Strong Keybox and auto-detected security patch). |
 | **`AodDimmer.apk`** | HyperOS & AOSP 14–17 | Standalone LSPosed Module | **Intelligent Brightness & Display Stabilizer** (AOD nits shaping, daytime sensor anti-flicker smoothing, and night white-bg anti-runaway cap). |
@@ -144,6 +145,57 @@ Patches `/product/etc/device_features/<device_codename>.xml` systemlessly to set
 
 ---
 
+## Component 7: `PasskeyEnabler.apk` (HyperOS Passkey & Third-Party Credential Provider Enabler)
+
+### The Problem on HyperOS & MIUI
+On Xiaomi devices running HyperOS (1.0–3.0) or MIUI:
+1. **Google Lock-in:** Xiaomi hardcoded Google Password Manager as the sole passkey provider in framework overlays (`config_primaryCredentialProviderService`) and `CredentialManagerService`.
+2. **Stripped Settings UI:** Xiaomi stripped `<action android:name="android.settings.CREDENTIAL_PROVIDER" />` from `Settings.apk`. As a result, users cannot switch passkey providers via the Settings UI, and any third-party app (such as Bitwarden or 1Password) attempting to open the system passkey picker crashes immediately with `ActivityNotFoundException`.
+3. **Xiaomi Credential Manager Suppression:** In `MiuiCredentialManager.apk`, app-preferred defaults (which browsers set to Google) override third-party credential providers during passkey registration.
+4. **Chrome FIDO Hijacking:** Google Chrome sets `Chrome.AutofillThirdPartyMode.State = false`, forcing Chrome to bypass Android's CredentialManager entirely and route WebAuthn directly to Google Play Services.
+
+### How It Works Internally
+- **SystemServer Framework Hooks (`services.jar`):**
+  - Hooks `CredentialManagerService.getPrimaryProvidersForUserId` and `CredentialManagerServiceStub.getEnabledProvidersForUser` to prioritize Bitwarden (`com.x8bit.bitwarden`) and third-party managers as primary providers.
+  - Hooks `ActivityTaskManagerService` to intercept `android.settings.CREDENTIAL_PROVIDER` intents and redirect them directly to `com.android.settings.applications.credentials.CredentialsPickerActivity` with `:settings:show_fragment = com.android.settings.applications.credentials.DefaultCombinedPicker`.
+- **Credential Manager UI Hooks (`MiuiCredentialManager.apk`):**
+  - Hooks `CreateFlowUtils$Companion.toCreateCredentialUiState` to enforce Bitwarden as `appPreferredDefaultProviderId` and register Bitwarden in `userSetDefaultProviderIds`.
+  - Hooks `toActiveEntry` to guarantee that the single-provider confirmation sheet selects Bitwarden as the `activeEntry`, suppressing browser preference for Google.
+  - Hooks `RequestDisplayInfo.getAppPreferredDefaultProviderId` to neutralize third-party apps requesting Google as the preferred default.
+- **Settings Activity Unmasking (`Settings.apk`):**
+  - Hooks `CredentialsPickerActivity.onCreate` to guarantee the AOSP Default Combined Picker fragment is displayed, allowing manual provider selection.
+- **Chrome Third-Party Passkey Mode Hook (`com.android.chrome`):**
+  - Hooks `SharedPreferencesImpl.getBoolean("Chrome.AutofillThirdPartyMode.State")` to return `true`, forcing Chrome to delegate passkeys to Android CredentialManager.
+- **Persistent Boot Service:**
+  - Installs a boot service to `/data/adb/service.d/passkey_enabler.sh` that restores `Settings.Secure.credential_service_primary`, `credential_service`, and `autofill_service` on cold boot.
+
+### Installation & Scope Configuration
+
+#### Method A: Via LSPosed / Vector Manager UI
+1. Install **`PasskeyEnabler.apk`**.
+2. Open **Vector / LSPosed Manager** -> **Modules** -> enable **HyperOS Passkey Enabler**.
+3. Check the following 4 targets in the module scope:
+   - **System Framework** (`android`)
+   - **Settings** (`com.android.settings`)
+   - **Google Chrome** (`com.android.chrome`)
+   - **Credential Manager** (`com.android.credentialmanager`)
+4. Open the **Passkey Enabler** companion app and tap **Apply Bitwarden Settings**.
+
+#### Method B: Via ADB / Root CLI
+```bash
+# Install module
+adb install -r PasskeyEnabler.apk
+
+# Enable module and set 4-app scope in Vector CLI
+adb shell "su -c '/data/adb/lspd/cli modules enable com.n3th3r.passkeyenabler && /data/adb/lspd/cli scope set com.n3th3r.passkeyenabler android com.android.settings com.android.chrome com.android.credentialmanager'"
+
+# Install persistent boot service
+adb push PasskeyEnabler/passkey_enabler.sh /data/local/tmp/
+adb shell "su -c 'cp /data/local/tmp/passkey_enabler.sh /data/adb/service.d/passkey_enabler.sh && chmod 755 /data/adb/service.d/passkey_enabler.sh && sh /data/adb/service.d/passkey_enabler.sh'"
+```
+
+---
+
 ## Hardware & Compatibility Matrix
 
 - **Verified Device:** POCO X6 5G / Redmi Note 13 Pro 5G (`garnet` / `garnetp_in`)
@@ -162,6 +214,7 @@ All pre-built binaries and flashable packages are published under [Releases](htt
 | File | Target System | Description | Download |
 | :--- | :--- | :--- | :--- |
 | **`IntuneBypass.apk`** | All Rooted Android (10–17) | Standalone LSPosed / Vector module to bypass Intune MAM & Company Portal root/RASP detection. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/IntuneBypass.apk) |
+| **`PasskeyEnabler.apk`** | HyperOS 1/2/3 & Android 14–17 | Standalone LSPosed / Vector module to enable third-party passkeys (Bitwarden) on HyperOS. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/PasskeyEnabler.apk) |
 | **`PlayIntegrity-TrickyStore-AIO.zip`** | HyperOS & Clean AOSP | All-in-one suite: Play Integrity Fork v18 + Tricky Store v1.4.1 + Strong Keybox. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/PlayIntegrity-TrickyStore-AIO.zip) |
 | **`TrickyStore-StrongIntegrity.zip`** | Custom ROMs (Infinity-X, etc.) | Standalone Tricky Store v1.4.1 pre-loaded with Strong Keybox and auto security patch. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/TrickyStore-StrongIntegrity.zip) |
 | **`AodDimmer.apk`** | HyperOS & AOSP 14–17 | LSPosed module companion app for AOD dimming and auto-brightness stabilizer. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/AodDimmer.apk) |

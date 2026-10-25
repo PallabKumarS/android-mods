@@ -12,7 +12,7 @@ $SignedApk = "$RootDir\IntuneBypass.apk"
 $SdkDir = if ($env:LOCALAPPDATA) { "$env:LOCALAPPDATA\Android\Sdk" } else { "$HOME\AppData\Local\Android\Sdk" }
 $BuildTools = "$SdkDir\build-tools\35.0.0"
 $AndroidJar = "$SdkDir\platforms\android-36\android.jar"
-$XposedJar = "$HOME\.gradle\caches\modules-2\files-2.1\de.robv.android.xposed\api\82\35866b507b360d4789ff389ad7386b6e8bbf6cc4\api-82.jar"
+$XposedJar = "$RootDir\tools\api-82.jar"
 $JdkBin = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot\bin"
 
 if (Test-Path $BuildDir) {
