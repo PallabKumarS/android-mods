@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">HyperOS Passkey Enabler</string>
-    <string name="title_status">Passkey &amp; Credential Provider Status</string>
-    <string name="btn_set_bitwarden">Set Bitwarden as Default Passkey Provider</string>
-    <string name="btn_open_picker">Open System Passkey Manager</string>
-    <string name="btn_open_chrome">Enable Passkeys in Chrome</string>
+    <string name="app_name">Passkey Manager</string>
+    <string name="subtitle_selector">Select default passkey &amp; credential provider</string>
+    <string name="btn_open_system_settings">Open System Credential Settings</string>
 </resources>

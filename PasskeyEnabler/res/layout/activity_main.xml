@@ -3,6 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="20dp"
+    android:background="#121214"
     android:fillViewport="true">
 
     <LinearLayout
@@ -16,63 +17,60 @@
             android:text="@string/app_name"
             android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="?android:attr/textColorPrimary" />
+            android:textColor="#FFFFFF" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="Systemless Passkey &amp; Credential Provider enabler for Xiaomi HyperOS"
+            android:layout_marginTop="4dp"
+            android:text="@string/subtitle_selector"
             android:textSize="14sp"
-            android:textColor="?android:attr/textColorSecondary" />
+            android:textColor="#8E8E93" />
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"
-            android:background="?android:attr/listDivider" />
+            android:background="#1FFFFFFF" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/title_status"
-            android:textSize="16sp"
+            android:layout_marginBottom="10dp"
+            android:text="AVAILABLE PASSKEY MANAGERS"
+            android:textSize="12sp"
             android:textStyle="bold"
-            android:textColor="?android:attr/textColorPrimary" />
+            android:letterSpacing="0.05"
+            android:textColor="#636366" />
 
-        <TextView
-            android:id="@+id/tv_status"
+        <LinearLayout
+            android:id="@+id/ll_providers_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:padding="12dp"
-            android:background="#15888888"
-            android:typeface="monospace"
-            android:textSize="13sp"
-            android:lineSpacingExtra="4dp"
-            android:textColor="?android:attr/textColorPrimary" />
+            android:orientation="vertical"
+            android:background="#1C1C1E" />
 
-        <Button
-            android:id="@+id/btn_set_bitwarden"
+        <TextView
+            android:id="@+id/tv_current_active"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="@string/btn_set_bitwarden" />
+            android:padding="14dp"
+            android:background="#1C1C1E"
+            android:typeface="monospace"
+            android:textSize="12sp"
+            android:textColor="#30D158"
+            android:lineSpacingExtra="3dp" />
 
         <Button
-            android:id="@+id/btn_open_picker"
+            android:id="@+id/btn_open_system_settings"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/btn_open_picker" />
-
-        <Button
-            android:id="@+id/btn_open_chrome"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/btn_open_chrome" />
+            android:layout_marginTop="16dp"
+            android:text="@string/btn_open_system_settings"
+            android:backgroundTint="#2C2C2E"
+            android:textColor="#0A84FF" />
 
     </LinearLayout>
 </ScrollView>
