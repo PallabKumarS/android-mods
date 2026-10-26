@@ -1,5 +1,7 @@
 package com.n3th3r.passkeyenabler;
 
+import android.os.Bundle;
+
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
@@ -9,6 +11,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -213,24 +217,28 @@ public class CredentialManagerHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         List<?> list = (List<?>) param.getResult();
+                        List<Object> allEntries = new ArrayList<>();
                         if (list != null && !list.isEmpty()) {
-                            return;
-                        }
-
-                        Object pdi = param.thisObject;
-                        List<?> perUserList = (List<?>) XposedHelpers.callMethod(pdi, "getSortedUserNameToCredentialEntryList");
-                        if (perUserList != null && !perUserList.isEmpty()) {
-                            List<Object> allEntries = new ArrayList<>();
-                            for (Object perUser : perUserList) {
-                                List<?> creds = (List<?>) XposedHelpers.callMethod(perUser, "getSortedCredentialEntryList");
-                                if (creds != null) {
-                                    allEntries.addAll(creds);
+                            allEntries.addAll(list);
+                        } else {
+                            Object pdi = param.thisObject;
+                            List<?> perUserList = (List<?>) XposedHelpers.callMethod(pdi, "getSortedUserNameToCredentialEntryList");
+                            if (perUserList != null && !perUserList.isEmpty()) {
+                                for (Object perUser : perUserList) {
+                                    List<?> creds = (List<?>) XposedHelpers.callMethod(perUser, "getSortedCredentialEntryList");
+                                    if (creds != null) {
+                                        allEntries.addAll(creds);
+                                    }
+                                }
+                                if (!allEntries.isEmpty()) {
+                                    XposedBridge.log(TAG + "Rescued " + allEntries.size() + " credential entries from perUserList");
                                 }
                             }
-                            if (!allEntries.isEmpty()) {
-                                XposedBridge.log(TAG + "Rescued " + allEntries.size() + " credential entries from perUserList");
-                                param.setResult(allEntries);
-                            }
+                        }
+
+                        if (!allEntries.isEmpty()) {
+                            sortCredentialEntries(allEntries);
+                            param.setResult(allEntries);
                         }
                     }
                 }
@@ -257,6 +265,8 @@ public class CredentialManagerHooks {
                             if (viewModel == null || getUiState == null) {
                                 return;
                             }
+
+                            extractRequestedUserHint(viewModel, getUiState);
 
                             Object screenState = XposedHelpers.callMethod(getUiState, "getCurrentScreenState");
                             String stateStr = screenState != null ? screenState.toString() : "";
@@ -418,5 +428,104 @@ public class CredentialManagerHooks {
         } catch (Throwable t) {
             return def;
         }
+    }
+
+    private static volatile String sRequestedUserHint = null;
+
+    private static void extractRequestedUserHint(Object viewModel, Object getUiState) {
+        try {
+            Object repo = XposedHelpers.getObjectField(viewModel, "credManRepo");
+            if (repo == null) return;
+
+            Object requestInfo = XposedHelpers.callMethod(repo, "getRequestInfo");
+            if (requestInfo == null) return;
+
+            Object getReq = XposedHelpers.callMethod(requestInfo, "getGetCredentialRequest");
+            if (getReq == null) return;
+
+            List<?> options = (List<?>) XposedHelpers.callMethod(getReq, "getCredentialOptions");
+            if (options == null) return;
+
+            for (Object opt : options) {
+                Bundle bundle = (Bundle) XposedHelpers.callMethod(opt, "getCredentialRetrievalData");
+                if (bundle == null) continue;
+
+                for (String key : bundle.keySet()) {
+                    Object val = bundle.get(key);
+                    if (val instanceof String) {
+                        String str = (String) val;
+                        if (str.contains("@") && str.length() < 120) {
+                            sRequestedUserHint = str.trim();
+                            XposedBridge.log(TAG + "Extracted requested user hint: " + sRequestedUserHint);
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void sortCredentialEntries(List<Object> entries) {
+        if (entries == null || entries.size() <= 1) {
+            return;
+        }
+
+        Collections.sort(entries, new Comparator<Object>() {
+            @Override
+            public int compare(Object a, Object b) {
+                int scoreA = getEntryScore(a);
+                int scoreB = getEntryScore(b);
+                if (scoreA != scoreB) {
+                    return Integer.compare(scoreB, scoreA);
+                }
+
+                try {
+                    Object timeA = XposedHelpers.callMethod(a, "getLastUsedTimeMillis");
+                    Object timeB = XposedHelpers.callMethod(b, "getLastUsedTimeMillis");
+                    if (timeA instanceof Comparable && timeB != null) {
+                        @SuppressWarnings("unchecked")
+                        int cmp = ((Comparable<Object>) timeB).compareTo(timeA);
+                        if (cmp != 0) return cmp;
+                    }
+                } catch (Throwable ignored) {}
+
+                return 0;
+            }
+        });
+    }
+
+    private static int getEntryScore(Object entry) {
+        int score = 0;
+        try {
+            Object typeObj = XposedHelpers.callMethod(entry, "getCredentialType");
+            String typeStr = typeObj != null ? typeObj.toString() : "";
+            String rawType = (String) XposedHelpers.callMethod(entry, "getRawCredentialType");
+            if (rawType == null) rawType = "";
+
+            if ("PASSKEY".equalsIgnoreCase(typeStr) || rawType.contains("PUBLIC_KEY") || rawType.toLowerCase().contains("passkey")) {
+                score += 10000;
+            } else if ("PASSWORD".equalsIgnoreCase(typeStr) || rawType.contains("PASSWORD")) {
+                score += 1000;
+            }
+
+            try {
+                Boolean autoSelect = (Boolean) XposedHelpers.callMethod(entry, "isAutoSelectable");
+                if (Boolean.TRUE.equals(autoSelect)) {
+                    score += 5000;
+                }
+            } catch (Throwable ignored) {}
+
+            if (sRequestedUserHint != null && !sRequestedUserHint.isEmpty()) {
+                try {
+                    String uName = (String) XposedHelpers.callMethod(entry, "getUserName");
+                    if (uName != null && !uName.isEmpty()) {
+                        if (uName.equalsIgnoreCase(sRequestedUserHint) || sRequestedUserHint.toLowerCase().contains(uName.toLowerCase())) {
+                            score += 50000;
+                        }
+                    }
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+        return score;
     }
 }

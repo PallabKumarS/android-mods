@@ -33,7 +33,9 @@ public class MainActivity extends Activity {
     public static final String DEFAULT_PROVIDER = "com.x8bit.bitwarden";
 
     private LinearLayout mListContainer;
-    private TextView mTvCurrentActive;
+    private ImageView mIvActiveIcon;
+    private TextView mTvActiveName;
+    private TextView mTvActivePkg;
     private final List<ProviderItem> mProviders = new ArrayList<>();
     private String mActivePackage = "";
 
@@ -61,7 +63,9 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         mListContainer = findViewById(R.id.ll_providers_list);
-        mTvCurrentActive = findViewById(R.id.tv_current_active);
+        mIvActiveIcon = findViewById(R.id.iv_active_icon);
+        mTvActiveName = findViewById(R.id.tv_active_name);
+        mTvActivePkg = findViewById(R.id.tv_active_pkg);
 
         Button btnSettings = findViewById(R.id.btn_open_system_settings);
         btnSettings.setOnClickListener(v -> openSystemPicker());
@@ -123,17 +127,30 @@ public class MainActivity extends Activity {
     }
 
     private void createProviderRow(ProviderItem item) {
+        float density = getResources().getDisplayMetrics().density;
+        boolean isActive = item.packageName.equals(mActivePackage);
+
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(32, 28, 32, 28);
-        row.setBackgroundResource(android.R.drawable.list_selector_background);
+
+        int padH = (int) (18 * density);
+        int padV = (int) (16 * density);
+        row.setPadding(padH, padV, padH, padV);
+        row.setBackgroundResource(isActive ? R.drawable.bg_card_provider_active : R.drawable.bg_card_provider);
         row.setClickable(true);
 
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        rowParams.bottomMargin = (int) (10 * density);
+        row.setLayoutParams(rowParams);
+
         ImageView ivIcon = new ImageView(this);
-        int iconSize = (int) (44 * getResources().getDisplayMetrics().density);
+        int iconSize = (int) (40 * density);
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(iconSize, iconSize);
-        iconParams.setMarginEnd(24);
+        iconParams.setMarginEnd((int) (16 * density));
         ivIcon.setLayoutParams(iconParams);
         ivIcon.setImageDrawable(item.icon);
         row.addView(ivIcon);
@@ -146,7 +163,7 @@ public class MainActivity extends Activity {
         TextView tvTitle = new TextView(this);
         tvTitle.setText(item.label);
         tvTitle.setTextSize(16);
-        tvTitle.setTypeface(null, Typeface.BOLD);
+        tvTitle.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         tvTitle.setTextColor(Color.WHITE);
         textCol.addView(tvTitle);
 
@@ -154,6 +171,12 @@ public class MainActivity extends Activity {
         tvSub.setText(item.packageName);
         tvSub.setTextSize(12);
         tvSub.setTextColor(Color.parseColor("#8E8E93"));
+        LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        subParams.topMargin = (int) (2 * density);
+        tvSub.setLayoutParams(subParams);
         textCol.addView(tvSub);
 
         row.addView(textCol);
@@ -161,6 +184,7 @@ public class MainActivity extends Activity {
         RadioButton rb = new RadioButton(this);
         rb.setClickable(false);
         rb.setFocusable(false);
+        rb.setChecked(isActive);
         row.addView(rb);
 
         item.radioButton = rb;
@@ -169,49 +193,82 @@ public class MainActivity extends Activity {
         row.setOnClickListener(v -> selectProvider(item));
 
         mListContainer.addView(row);
-
-        View divider = new View(this);
-        divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
-        divider.setBackgroundColor(Color.parseColor("#1FFFFFFF"));
-        mListContainer.addView(divider);
     }
 
     private void selectProvider(ProviderItem selected) {
         mActivePackage = selected.packageName;
-        refreshSelectionState();
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("setprop ").append(PROP_PROVIDER).append(" ").append(selected.packageName).append("\n");
-        sb.append("setprop ").append(PROP_SERVICE).append(" ").append(selected.serviceComponent).append("\n");
-        sb.append("settings put secure credential_service_primary ").append(selected.serviceComponent).append("\n");
-        sb.append("settings put secure credential_service ").append(selected.serviceComponent).append("\n");
-
-        if (selected.autofillComponent != null && !selected.autofillComponent.isEmpty()) {
-            sb.append("settings put secure autofill_service ").append(selected.autofillComponent).append("\n");
+        // Instant UI update on UI thread (0ms latency)
+        for (ProviderItem item : mProviders) {
+            boolean active = item.packageName.equals(mActivePackage);
+            if (item.radioButton != null) {
+                item.radioButton.setChecked(active);
+            }
+            if (item.rowView != null) {
+                item.rowView.setBackgroundResource(active ? R.drawable.bg_card_provider_active : R.drawable.bg_card_provider);
+            }
         }
+        updateStatusCard(selected);
 
-        if (!"com.google.android.gms".equals(selected.packageName)) {
-            sb.append("am force-stop com.android.chrome\n");
-            sb.append("sed -i 's/name=\"Chrome.AutofillThirdPartyMode.State\" value=\"false\"/name=\"Chrome.AutofillThirdPartyMode.State\" value=\"true\"/g' /data/data/com.android.chrome/shared_prefs/com.android.chrome_preferences.xml\n");
+        // Dispatch root commands asynchronously
+        final String activePkg = selected.packageName;
+        final String label = selected.label;
+        final String svc = selected.serviceComponent;
+        final String autofill = selected.autofillComponent;
+
+        new Thread(() -> {
+            StringBuilder sb = new StringBuilder();
+            sb.append("setprop ").append(PROP_PROVIDER).append(" ").append(activePkg).append("\n");
+            sb.append("setprop ").append(PROP_SERVICE).append(" ").append(svc).append("\n");
+            sb.append("settings put secure credential_service_primary ").append(svc).append("\n");
+            sb.append("settings put secure credential_service ").append(svc).append("\n");
+
+            if (autofill != null && !autofill.isEmpty()) {
+                sb.append("settings put secure autofill_service ").append(autofill).append("\n");
+            }
+
+            if (!"com.google.android.gms".equals(activePkg)) {
+                sb.append("am force-stop com.android.chrome\n");
+                sb.append("sed -i 's/name=\"Chrome.AutofillThirdPartyMode.State\" value=\"false\"/name=\"Chrome.AutofillThirdPartyMode.State\" value=\"true\"/g' /data/data/com.android.chrome/shared_prefs/com.android.chrome_preferences.xml 2>/dev/null\n");
+            }
+
+            sb.append("sed -i 's|^settings put secure credential_service_primary .*|settings put secure credential_service_primary ").append(svc).append("|g' /data/adb/service.d/passkey_enabler.sh 2>/dev/null\n");
+
+            executeRootCommand(sb.toString());
+
+            runOnUiThread(() -> Toast.makeText(MainActivity.this, "Active: " + label, Toast.LENGTH_SHORT).show());
+        }).start();
+    }
+
+    private void updateStatusCard(ProviderItem item) {
+        if (item == null) return;
+        if (mIvActiveIcon != null && item.icon != null) {
+            mIvActiveIcon.setImageDrawable(item.icon);
         }
-
-        // Update persistent boot service
-        sb.append("sed -i 's|^settings put secure credential_service_primary .*|settings put secure credential_service_primary ").append(selected.serviceComponent).append("|g' /data/adb/service.d/passkey_enabler.sh 2>/dev/null\n");
-
-        executeRootCommand(sb.toString());
-
-        Toast.makeText(this, "Active Passkey Manager: " + selected.label, Toast.LENGTH_SHORT).show();
+        if (mTvActiveName != null) {
+            mTvActiveName.setText(item.label);
+        }
+        if (mTvActivePkg != null) {
+            mTvActivePkg.setText(item.packageName);
+        }
     }
 
     private void refreshSelectionState() {
+        ProviderItem activeItem = null;
         for (ProviderItem item : mProviders) {
             boolean isSelected = item.packageName.equals(mActivePackage);
             if (item.radioButton != null) {
                 item.radioButton.setChecked(isSelected);
             }
-            if (isSelected) {
-                mTvCurrentActive.setText("Active Provider: " + item.label + "\n(" + item.serviceComponent + ")");
+            if (item.rowView != null) {
+                item.rowView.setBackgroundResource(isSelected ? R.drawable.bg_card_provider_active : R.drawable.bg_card_provider);
             }
+            if (isSelected) {
+                activeItem = item;
+            }
+        }
+        if (activeItem != null) {
+            updateStatusCard(activeItem);
         }
     }
 
