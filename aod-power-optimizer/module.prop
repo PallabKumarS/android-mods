@@ -1,0 +1,6 @@
+id=aod-power-optimizer
+name=AOD & Deep Sleep Power Optimizer
+version=v1.0.0
+versionCode=100
+author=PallabKumarS
+description=Universal AOD battery saver, refresh rate regulator, and deep sleep suspend optimizer with WebUI.
