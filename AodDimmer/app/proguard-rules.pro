@@ -1,1 +1,0 @@
--keep class com.n3th3r.aoddimmer.MainHook { *; }

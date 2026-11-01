@@ -1,165 +1,278 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AOD & Deep Sleep Power Optimizer</title>
-    <link rel="stylesheet" href="./style.css">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<title>AOD Power Optimizer &amp; Dimmer</title>
+	<link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <header class="app-header">
-        <div class="header-container">
-            <h1 class="header-title">AOD & Deep Sleep Optimizer</h1>
-            <p class="header-subtitle">KernelSU / APatch Universal Power Regulator</p>
-        </div>
-    </header>
+	<header class="app-header">
+		<div class="header-container">
+			<h1 class="header-title">AOD Power Optimizer &amp; Dimmer</h1>
+			<p class="header-subtitle">v2.0.0 &middot; Unified AMOLED LP2 Rail, Doze Regulator &amp; Brightness Control</p>
+		</div>
+	</header>
 
-    <main class="main-content">
-        <section class="section-container">
-            <div class="section-header">
-                <h2>Live System Monitor</h2>
-                <button id="btn-refresh" class="btn-text" type="button">Refresh</button>
-            </div>
-            <div class="grid-fluid">
-                <div class="stat-card">
-                    <span class="stat-label">Battery Level</span>
-                    <span id="stat-battery" class="stat-value">--%</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Active Refresh Rate</span>
-                    <span id="stat-fps" class="stat-value">-- Hz</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Deep Sleep Status</span>
-                    <span id="stat-suspend" class="stat-value">Ready</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Panel State</span>
-                    <span id="stat-screen" class="stat-value">--</span>
-                </div>
-            </div>
-        </section>
+	<main class="main-content">
+		<section class="section-container">
+			<div class="section-header">
+				<h2>Live Hardware Monitor</h2>
+				<button id="btn-refresh" class="btn-text" type="button">Refresh</button>
+			</div>
+			<div class="grid-stats">
+				<div class="stat-card">
+					<span class="stat-label">Battery</span>
+					<span id="stat-battery" class="stat-value">--%</span>
+				</div>
+				<div class="stat-card">
+					<span class="stat-label">Power State</span>
+					<span id="stat-screen" class="stat-value">--</span>
+				</div>
+				<div class="stat-card">
+					<span class="stat-label">AMOLED DDIC Rail</span>
+					<span id="stat-rail" class="stat-value">--</span>
+				</div>
+				<div class="stat-card">
+					<span class="stat-label">Doze Daemon</span>
+					<span id="stat-daemon" class="stat-value">--</span>
+				</div>
+				<div class="stat-card">
+					<span class="stat-label">AOD Brightness</span>
+					<span id="stat-aod-brt" class="stat-value">--</span>
+				</div>
+				<div class="stat-card">
+					<span class="stat-label">Refresh Rate</span>
+					<span id="stat-fps" class="stat-value">-- Hz</span>
+				</div>
+			</div>
+		</section>
 
-        <section class="section-container">
-            <div class="section-header">
-                <h2>AOD & Display Tuning</h2>
-            </div>
-            <div class="grid-fluid">
-                <div class="config-card">
-                    <div class="card-content">
-                        <div class="card-text">
-                            <h3>Ambient Low-Bit Mode</h3>
-                            <p>Switches AOD framebuffer to 16-bit color, reducing display controller bus power and RAM drain in Doze.</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chk-low-bit">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="card-meta">
-                        <span class="badge" id="badge-low-bit">Global: --</span>
-                    </div>
-                </div>
+		<section class="section-container">
+			<div class="section-header">
+				<h2>AOD Dimmer &amp; AMOLED Hardware Rail</h2>
+			</div>
+			<div class="grid-fluid">
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>AMOLED Low-Brightness Rail (LP2 / LBM)</h3>
+							<p>Switches Xiaomi/Qualcomm DSI panels from high-voltage LP1 to low-voltage LP2/LBM charge pump during AOD (~75 mA drop).</p>
+						</div>
+						<label class="switch" for="chk-hw-lbm" aria-label="Toggle AMOLED Low-Brightness Rail">
+							<span class="sr-only">Toggle AMOLED Low-Brightness Rail</span>
+							<input type="checkbox" id="chk-hw-lbm">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-subrow">
+						<label class="subrow-label" for="sel-rail-mode">DDIC Rail Target</label>
+						<select id="sel-rail-mode" class="select-dropdown">
+							<option value="auto">Auto (LBM &le;15%, HBM &gt;15%)</option>
+							<option value="lbm">Force LBM / LP2 (Lowest Power)</option>
+							<option value="hbm">Force HBM / LP1 (Outdoor Bright)</option>
+						</select>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-hw-lbm">Node: --</span>
+					</div>
+				</div>
 
-                <div class="config-card">
-                    <div class="card-content">
-                        <div class="card-text">
-                            <h3>Proximity Pocket Mode</h3>
-                            <p>Shuts off the AOD screen completely when the sensor detects the phone is in a pocket or faced down.</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chk-proximity">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="card-meta">
-                        <span class="badge" id="badge-proximity">Secure: --</span>
-                    </div>
-                </div>
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Override System AOD Brightness</h3>
+							<p>Off by default to respect your ROM's native AOD brightness (e.g. 1%). Turn on to enforce a custom AOD level.</p>
+						</div>
+						<label class="switch" for="chk-aod-override" aria-label="Toggle Override System AOD Brightness">
+							<span class="sr-only">Toggle Override System AOD Brightness</span>
+							<input type="checkbox" id="chk-aod-override">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div id="panel-aod-slider" class="slider-panel hidden">
+						<div class="slider-header">
+							<label for="rng-aod-brightness">Custom AOD Brightness</label>
+							<strong id="lbl-aod-brightness">1%</strong>
+						</div>
+						<input type="range" id="rng-aod-brightness" class="range-input" min="1" max="50" value="1">
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-aod-override">Respecting System: --</span>
+					</div>
+				</div>
 
-                <div class="config-card">
-                    <div class="card-content">
-                        <div class="card-text">
-                            <h3>Minimum Refresh Rate</h3>
-                            <p>Prevents custom ROMs from locking the screen to maximum refresh rate while idling in Doze.</p>
-                        </div>
-                        <select id="sel-min-rate" class="select-dropdown">
-                            <option value="60.0">60 Hz (Recommended)</option>
-                            <option value="90.0">90 Hz</option>
-                            <option value="120.0">120 Hz</option>
-                            <option value="0">System Default</option>
-                        </select>
-                    </div>
-                    <div class="card-meta">
-                        <span class="badge" id="badge-min-rate">System: --</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Ambient Low-Bit Mode</h3>
+							<p>Switches AOD framebuffer to 16-bit color, reducing display controller memory bandwidth in Doze.</p>
+						</div>
+						<label class="switch" for="chk-low-bit" aria-label="Toggle Ambient Low-Bit Mode">
+							<span class="sr-only">Toggle Ambient Low-Bit Mode</span>
+							<input type="checkbox" id="chk-low-bit">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-low-bit">Global: --</span>
+					</div>
+				</div>
 
-        <section class="section-container">
-            <div class="section-header">
-                <h2>Kernel Suspend & Background Tuning</h2>
-            </div>
-            <div class="grid-fluid">
-                <div class="config-card">
-                    <div class="card-content">
-                        <div class="card-text">
-                            <h3>Throttle Background Wi-Fi Scan</h3>
-                            <p>Suppresses background Wi-Fi location wakes during sleep, fixing Qualcomm EBUSY suspend aborts.</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chk-wifi-scan">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="card-meta">
-                        <span class="badge" id="badge-wifi-scan">Global: --</span>
-                    </div>
-                </div>
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Proximity Pocket Shutoff</h3>
+							<p>Powers down the AMOLED panel completely when face-down or inside a pocket.</p>
+						</div>
+						<label class="switch" for="chk-proximity" aria-label="Toggle Proximity Pocket Shutoff">
+							<span class="sr-only">Toggle Proximity Pocket Shutoff</span>
+							<input type="checkbox" id="chk-proximity">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-proximity">Secure: --</span>
+					</div>
+				</div>
 
-                <div class="config-card">
-                    <div class="card-content">
-                        <div class="card-text">
-                            <h3>Throttle Background BLE Scan</h3>
-                            <p>Suppresses idle Bluetooth Low Energy scanning while the screen is off.</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chk-ble-scan">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="card-meta">
-                        <span class="badge" id="badge-ble-scan">Global: --</span>
-                    </div>
-                </div>
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Minimum Refresh Rate</h3>
+							<p>Allows the display to step down to 60 Hz cleanly during AOD and idle states.</p>
+						</div>
+						<select id="sel-min-rate" class="select-dropdown" aria-label="Minimum Refresh Rate">
+							<option value="60.0">60 Hz (Recommended)</option>
+							<option value="90.0">90 Hz</option>
+							<option value="120.0">120 Hz</option>
+							<option value="0">System Default</option>
+						</select>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-min-rate">System: --</span>
+					</div>
+				</div>
+			</div>
+		</section>
 
-                <div class="config-card">
-                    <div class="card-content">
-                        <div class="card-text">
-                            <h3>Disable Phantom Process Killer</h3>
-                            <p>Prevents Android 12–17 from killing necessary background tasks and isolated services.</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chk-phantom">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="card-meta">
-                        <span class="badge" id="badge-phantom">Config: --</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+		<section class="section-container">
+			<div class="section-header">
+				<h2>Doze SoC, Radio &amp; Deep Sleep</h2>
+			</div>
+			<div class="grid-fluid">
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Doze-Only CPU &amp; GPU Clamp</h3>
+							<p>Caps big cores to 1.19 GHz and GPU to 500 MHz strictly during AOD ticks; restores full speed immediately on wake.</p>
+						</div>
+						<label class="switch" for="chk-doze-cpu" aria-label="Toggle Doze-Only CPU and GPU Clamp">
+							<span class="sr-only">Toggle Doze-Only CPU and GPU Clamp</span>
+							<input type="checkbox" id="chk-doze-cpu">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-doze-cpu">Policy: --</span>
+					</div>
+				</div>
 
-        <section class="actions-container">
-            <button id="btn-save" class="btn btn-primary" type="button">Save & Apply Now</button>
-            <button id="btn-restore" class="btn btn-secondary" type="button">Reset to Defaults</button>
-        </section>
-    </main>
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Fast Sensorless Deep Doze</h3>
+							<p>Enters Deep Doze in 60s and skips 15s accelerometer and GPS wake windows on maintenance ticks.</p>
+						</div>
+						<label class="switch" for="chk-deep-doze" aria-label="Toggle Fast Sensorless Deep Doze">
+							<span class="sr-only">Toggle Fast Sensorless Deep Doze</span>
+							<input type="checkbox" id="chk-deep-doze">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-deep-doze">DeviceIdle: --</span>
+					</div>
+				</div>
 
-    <div id="toast" class="toast"></div>
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Suppress Wi-Fi Wakeup Storms</h3>
+							<p>Disables background Wi-Fi location scanning, auto-wakeup, and recommendation wakes while sleeping.</p>
+						</div>
+						<label class="switch" for="chk-wifi-scan" aria-label="Toggle Suppress Wi-Fi Wakeup Storms">
+							<span class="sr-only">Toggle Suppress Wi-Fi Wakeup Storms</span>
+							<input type="checkbox" id="chk-wifi-scan">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-wifi-scan">Global: --</span>
+					</div>
+				</div>
 
-    <script src="./app.js"></script>
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Throttle Idle BLE Scan Duty</h3>
+							<p>Cuts background BLE scan duty by 75% while keeping Bluetooth ON and connectable for instant TWS earbud auto-connect.</p>
+						</div>
+						<label class="switch" for="chk-ble-scan" aria-label="Toggle Throttle Idle BLE Scan Duty">
+							<span class="sr-only">Toggle Throttle Idle BLE Scan Duty</span>
+							<input type="checkbox" id="chk-ble-scan">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-ble-scan">BLE Duty: --</span>
+					</div>
+				</div>
+
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Suppress Lift / Tilt Wake</h3>
+							<p>Optional: disables pickup/tilt wake gestures so motion does not wake the screen from AOD.</p>
+						</div>
+						<label class="switch" for="chk-suppress-tilt" aria-label="Toggle Suppress Lift and Tilt Wake">
+							<span class="sr-only">Toggle Suppress Lift and Tilt Wake</span>
+							<input type="checkbox" id="chk-suppress-tilt">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-suppress-tilt">Gesture: --</span>
+					</div>
+				</div>
+
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>Disable Phantom Process Killer</h3>
+							<p>Prevents Android 12–17 from terminating background child processes and isolated services.</p>
+						</div>
+						<label class="switch" for="chk-phantom" aria-label="Toggle Disable Phantom Process Killer">
+							<span class="sr-only">Toggle Disable Phantom Process Killer</span>
+							<input type="checkbox" id="chk-phantom">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-phantom">Monitor: --</span>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="actions-container">
+			<button id="btn-save" class="btn btn-primary" type="button">Save &amp; Apply Live</button>
+			<button id="btn-restore" class="btn btn-secondary" type="button">Reset Recommended Defaults</button>
+		</section>
+	</main>
+
+	<div id="toast" class="toast"></div>
+
+	<script src="./app.js"></script>
 </body>
 </html>
