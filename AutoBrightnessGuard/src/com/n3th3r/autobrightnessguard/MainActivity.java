@@ -14,6 +14,9 @@ import android.widget.Toast;
 import java.util.Locale;
 
 public final class MainActivity extends Activity {
+    private static final String KEY_SCHEMA_VERSION = "pref_schema_version";
+    private static final int CURRENT_SCHEMA_VERSION = 2;
+
     private SharedPreferences mPrefs;
     private boolean mWorldReadableActive;
     private boolean mUpdatingUi;
@@ -25,6 +28,7 @@ public final class MainActivity extends Activity {
     private TextView mTvNightMaxCap;
     private SeekBar mSeekBarNightLuxThreshold;
     private TextView mTvNightLuxThreshold;
+    private Switch mSwitchManualOverride;
 
     private Switch mSwitchDaytimeAntiFlicker;
     private SeekBar mSeekBarDiffThreshold;
@@ -56,15 +60,37 @@ public final class MainActivity extends Activity {
 
         if (!mPrefs.contains(PrefKeys.KEY_MODULE_ENABLED)) {
             writeDefaultPreferences();
+            return;
         }
+
+        migrateV20DefaultsIfNeeded();
+    }
+
+    private void migrateV20DefaultsIfNeeded() {
+        if (mPrefs.getInt(KEY_SCHEMA_VERSION, 1) >= CURRENT_SCHEMA_VERSION) {
+            return;
+        }
+        SharedPreferences.Editor editor = mPrefs.edit();
+        if (!mPrefs.contains(PrefKeys.KEY_ALLOW_MANUAL_OVERRIDE)) {
+            editor.putBoolean(PrefKeys.KEY_ALLOW_MANUAL_OVERRIDE, PrefKeys.DEF_ALLOW_MANUAL_OVERRIDE);
+        }
+        if (mPrefs.getInt(PrefKeys.KEY_THROTTLE_MS, 2000) == 2000) {
+            editor.putInt(PrefKeys.KEY_THROTTLE_MS, PrefKeys.DEF_THROTTLE_MS);
+        }
+        if (mPrefs.getInt(PrefKeys.KEY_DIFF_THRESHOLD_PERCENT, 25) == 25) {
+            editor.putInt(PrefKeys.KEY_DIFF_THRESHOLD_PERCENT, PrefKeys.DEF_DIFF_THRESHOLD_PERCENT);
+        }
+        editor.putInt(KEY_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION).apply();
     }
 
     private void writeDefaultPreferences() {
         mPrefs.edit()
+            .putInt(KEY_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION)
             .putBoolean(PrefKeys.KEY_MODULE_ENABLED, PrefKeys.DEF_MODULE_ENABLED)
             .putBoolean(PrefKeys.KEY_NIGHT_GUARD_ENABLED, PrefKeys.DEF_NIGHT_GUARD_ENABLED)
             .putInt(PrefKeys.KEY_NIGHT_MAX_PERCENT, PrefKeys.DEF_NIGHT_MAX_PERCENT)
             .putInt(PrefKeys.KEY_NIGHT_LUX_THRESHOLD, PrefKeys.DEF_NIGHT_LUX_THRESHOLD)
+            .putBoolean(PrefKeys.KEY_ALLOW_MANUAL_OVERRIDE, PrefKeys.DEF_ALLOW_MANUAL_OVERRIDE)
             .putBoolean(PrefKeys.KEY_DAYTIME_ANTI_FLICKER, PrefKeys.DEF_DAYTIME_ANTI_FLICKER)
             .putInt(PrefKeys.KEY_DIFF_THRESHOLD_PERCENT, PrefKeys.DEF_DIFF_THRESHOLD_PERCENT)
             .putInt(PrefKeys.KEY_THROTTLE_MS, PrefKeys.DEF_THROTTLE_MS)
@@ -81,6 +107,7 @@ public final class MainActivity extends Activity {
         mTvNightMaxCap = findViewById(R.id.tv_night_max_cap);
         mSeekBarNightLuxThreshold = findViewById(R.id.seekbar_night_lux_threshold);
         mTvNightLuxThreshold = findViewById(R.id.tv_night_lux_threshold);
+        mSwitchManualOverride = findViewById(R.id.switch_manual_override);
 
         mSwitchDaytimeAntiFlicker = findViewById(R.id.switch_daytime_anti_flicker);
         mSeekBarDiffThreshold = findViewById(R.id.seekbar_diff_threshold);
@@ -93,7 +120,7 @@ public final class MainActivity extends Activity {
         btnReset.setOnClickListener(v -> {
             writeDefaultPreferences();
             populateUi();
-            Toast.makeText(this, "Restored recommended defaults", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Restored recommended v2.1.0 defaults", Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -112,12 +139,16 @@ public final class MainActivity extends Activity {
         mSwitchNightGuard.setChecked(mPrefs.getBoolean(PrefKeys.KEY_NIGHT_GUARD_ENABLED, PrefKeys.DEF_NIGHT_GUARD_ENABLED));
 
         int nightMaxCap = mPrefs.getInt(PrefKeys.KEY_NIGHT_MAX_PERCENT, PrefKeys.DEF_NIGHT_MAX_PERCENT);
-        mSeekBarNightMaxCap.setProgress(clamp(nightMaxCap - 10, 0, 40));
+        mSeekBarNightMaxCap.setProgress(clamp(nightMaxCap - 5, 0, 45));
         mTvNightMaxCap.setText(String.format(Locale.US, "%d%%", nightMaxCap));
 
         int nightLux = mPrefs.getInt(PrefKeys.KEY_NIGHT_LUX_THRESHOLD, PrefKeys.DEF_NIGHT_LUX_THRESHOLD);
-        mSeekBarNightLuxThreshold.setProgress(clamp(nightLux - 5, 0, 55));
+        mSeekBarNightLuxThreshold.setProgress(clamp(nightLux - 5, 0, 75));
         mTvNightLuxThreshold.setText(String.format(Locale.US, "%d lux", nightLux));
+
+        mSwitchManualOverride.setChecked(
+            mPrefs.getBoolean(PrefKeys.KEY_ALLOW_MANUAL_OVERRIDE, PrefKeys.DEF_ALLOW_MANUAL_OVERRIDE)
+        );
 
         mSwitchDaytimeAntiFlicker.setChecked(
             mPrefs.getBoolean(PrefKeys.KEY_DAYTIME_ANTI_FLICKER, PrefKeys.DEF_DAYTIME_ANTI_FLICKER)
@@ -128,8 +159,10 @@ public final class MainActivity extends Activity {
         mTvDiffThreshold.setText(String.format(Locale.US, "%d%%", diffPercent));
 
         int throttleMs = mPrefs.getInt(PrefKeys.KEY_THROTTLE_MS, PrefKeys.DEF_THROTTLE_MS);
-        mSeekBarThrottle.setProgress(clamp((throttleMs - 500) / 500, 0, 9));
-        mTvThrottle.setText(String.format(Locale.US, "%.1fs", throttleMs / 1000.0f));
+        int clampedThrottle = clamp((throttleMs - 200) / 200, 0, 9);
+        int displayMs = 200 + clampedThrottle * 200;
+        mSeekBarThrottle.setProgress(clampedThrottle);
+        mTvThrottle.setText(String.format(Locale.US, "%.1fs", displayMs / 1000.0f));
 
         mSwitchSmoothing.setChecked(mPrefs.getBoolean(PrefKeys.KEY_LUX_SMOOTHING, PrefKeys.DEF_LUX_SMOOTHING));
         mUpdatingUi = false;
@@ -147,7 +180,7 @@ public final class MainActivity extends Activity {
         });
 
         mSeekBarNightMaxCap.setOnSeekBarChangeListener(onSeek((progress) -> {
-            int val = 10 + progress;
+            int val = 5 + progress;
             mTvNightMaxCap.setText(String.format(Locale.US, "%d%%", val));
             mPrefs.edit().putInt(PrefKeys.KEY_NIGHT_MAX_PERCENT, val).apply();
         }));
@@ -157,6 +190,11 @@ public final class MainActivity extends Activity {
             mTvNightLuxThreshold.setText(String.format(Locale.US, "%d lux", val));
             mPrefs.edit().putInt(PrefKeys.KEY_NIGHT_LUX_THRESHOLD, val).apply();
         }));
+
+        mSwitchManualOverride.setOnCheckedChangeListener((btn, checked) -> {
+            if (mUpdatingUi) return;
+            mPrefs.edit().putBoolean(PrefKeys.KEY_ALLOW_MANUAL_OVERRIDE, checked).apply();
+        });
 
         mSwitchDaytimeAntiFlicker.setOnCheckedChangeListener((btn, checked) -> {
             if (mUpdatingUi) return;
@@ -170,7 +208,7 @@ public final class MainActivity extends Activity {
         }));
 
         mSeekBarThrottle.setOnSeekBarChangeListener(onSeek((progress) -> {
-            int ms = 500 + progress * 500;
+            int ms = 200 + progress * 200;
             mTvThrottle.setText(String.format(Locale.US, "%.1fs", ms / 1000.0f));
             mPrefs.edit().putInt(PrefKeys.KEY_THROTTLE_MS, ms).apply();
         }));

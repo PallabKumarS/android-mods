@@ -3,22 +3,70 @@ MODDIR="${0%/*}"
 CONFIG_FILE="$MODDIR/config.sh"
 
 HW_AOD_LBM=1
-AOD_RAIL_MODE=auto
+AOD_RAIL_MODE=lbm
 AOD_BRIGHTNESS_OVERRIDE=0
 AOD_CUSTOM_BRIGHTNESS=1
-DOZE_CPU_CAP=1
 LOW_BIT=1
 PROXIMITY_POCKET=1
-MIN_REFRESH_RATE=60.0
+SUPPRESS_AOD_PULSE_WAKE=1
+SUPPRESS_TILT_WAKE=1
 DEEP_DOZE_OPT=1
 WIFI_SCAN_THROTTLE=1
 BLE_SCAN_THROTTLE=1
-SUPPRESS_TILT_WAKE=0
-PHANTOM_KILLER_DISABLE=1
 
 if [ -f "$CONFIG_FILE" ]; then
     . "$CONFIG_FILE"
 fi
+
+ensure_awake_performance_untouched() {
+    CPU_MAX_NODE="/sys/kernel/msm_performance/parameters/cpu_max_freq"
+    GPU_MAX_NODE="/sys/class/kgsl/kgsl-3d0/devfreq/max_freq"
+    GPU_AVAIL_NODE="/sys/class/kgsl/kgsl-3d0/devfreq/available_frequencies"
+
+    if [ -w "$CPU_MAX_NODE" ]; then
+        CUR_CPU="$(cat "$CPU_MAX_NODE" 2>/dev/null)"
+        case "$CUR_CPU" in
+            *1190400*|*1324800*)
+                echo "0:9999999 1:9999999 2:9999999 3:9999999 4:9999999 5:9999999 6:9999999 7:9999999" > "$CPU_MAX_NODE" 2>/dev/null
+                ;;
+        esac
+    fi
+
+    if [ -r "$GPU_AVAIL_NODE" ] && [ -w "$GPU_MAX_NODE" ]; then
+        MAX_GPU="$(awk '{print $1}' "$GPU_AVAIL_NODE" 2>/dev/null)"
+        CUR_GPU="$(cat "$GPU_MAX_NODE" 2>/dev/null)"
+        if [ -n "$MAX_GPU" ] && [ "$CUR_GPU" = "500000000" ]; then
+            echo "$MAX_GPU" > "$GPU_MAX_NODE" 2>/dev/null
+        fi
+    fi
+
+    if [ -f "$MODDIR/.v21_migrated" ]; then
+        return
+    fi
+
+    EXTREME_FPS="$(settings get system extreme_refresh_rate 2>/dev/null)"
+    if [ "$EXTREME_FPS" = "1" ]; then
+        PEAK_FPS="$(settings get system peak_refresh_rate 2>/dev/null)"
+        case "$PEAK_FPS" in
+            ''|null) PEAK_FPS="120.0" ;;
+        esac
+        settings put system min_refresh_rate "$PEAK_FPS" 2>/dev/null
+    else
+        CUR_MIN_FPS="$(settings get system min_refresh_rate 2>/dev/null)"
+        [ "$CUR_MIN_FPS" = "60.0" ] && settings delete system min_refresh_rate 2>/dev/null
+    fi
+
+    settings delete global device_idle_constants 2>/dev/null
+    settings delete global ble_scan_low_power_interval_ms 2>/dev/null
+    settings delete global ble_scan_low_power_window_ms 2>/dev/null
+    settings delete global ble_scan_balanced_interval_ms 2>/dev/null
+    settings delete global ble_scan_balanced_window_ms 2>/dev/null
+    settings delete global ble_scan_always_enabled 2>/dev/null
+    settings put global settings_enable_monitor_phantom_procs true 2>/dev/null
+    device_config delete activity_manager max_phantom_processes >/dev/null 2>&1
+
+    touch "$MODDIR/.v21_migrated"
+}
 
 apply_aod_display_settings() {
     if [ "$LOW_BIT" = "1" ]; then
@@ -33,12 +81,6 @@ apply_aod_display_settings() {
         settings put secure doze_proximity_sensor_enabled 1 2>/dev/null
     else
         settings put secure doze_proximity_sensor_enabled 0 2>/dev/null
-    fi
-
-    if [ -n "$MIN_REFRESH_RATE" ] && [ "$MIN_REFRESH_RATE" != "0" ]; then
-        settings put system min_refresh_rate "$MIN_REFRESH_RATE" 2>/dev/null
-    else
-        settings delete system min_refresh_rate 2>/dev/null
     fi
 }
 
@@ -72,65 +114,43 @@ apply_aod_brightness_override() {
     fi
 }
 
-apply_radio_and_doze_settings() {
-    if [ "$WIFI_SCAN_THROTTLE" = "1" ]; then
-        settings put global wifi_scan_always_enabled 0 2>/dev/null
-        settings put global wifi_wakeup_enabled 0 2>/dev/null
-        settings put global network_recommendations_enabled 0 2>/dev/null
-        settings put global wifi_sleep_policy 2 2>/dev/null
-        cmd wifi force-low-latency-mode disabled >/dev/null 2>&1
-    else
-        settings put global wifi_scan_always_enabled 1 2>/dev/null
+apply_aod_wake_suppression() {
+    PULSE_FLAG="$MODDIR/.pulse_was_suppressed"
+    if [ "$SUPPRESS_AOD_PULSE_WAKE" = "1" ]; then
+        if [ ! -f "$PULSE_FLAG" ]; then
+            settings get secure doze_enabled 2>/dev/null > "$MODDIR/.orig_doze_enabled"
+            settings get secure ambient_pulse_enabled 2>/dev/null > "$MODDIR/.orig_ambient_pulse"
+            touch "$PULSE_FLAG"
+        fi
+        settings put secure doze_enabled 0 2>/dev/null
+        settings put secure ambient_pulse_enabled 0 2>/dev/null
+    elif [ -f "$PULSE_FLAG" ]; then
+        ORIG_DOZE_EN="$(cat "$MODDIR/.orig_doze_enabled" 2>/dev/null)"
+        ORIG_AMB_PULSE="$(cat "$MODDIR/.orig_ambient_pulse" 2>/dev/null)"
+        [ -n "$ORIG_DOZE_EN" ] && [ "$ORIG_DOZE_EN" != "null" ] && settings put secure doze_enabled "$ORIG_DOZE_EN" 2>/dev/null
+        [ -n "$ORIG_AMB_PULSE" ] && [ "$ORIG_AMB_PULSE" != "null" ] && settings put secure ambient_pulse_enabled "$ORIG_AMB_PULSE" 2>/dev/null
+        rm -f "$PULSE_FLAG"
     fi
 
-    # Preserves Bluetooth ON and Classic connectable scan so TWS earbuds auto-connect immediately
-    if [ "$BLE_SCAN_THROTTLE" = "1" ]; then
-        settings put global ble_scan_always_enabled 0 2>/dev/null
-        settings put global ble_scan_low_power_interval_ms 10240 2>/dev/null
-        settings put global ble_scan_low_power_window_ms 512 2>/dev/null
-        settings put global ble_scan_balanced_interval_ms 4096 2>/dev/null
-        settings put global ble_scan_balanced_window_ms 512 2>/dev/null
-    else
-        settings delete global ble_scan_low_power_interval_ms 2>/dev/null
-        settings delete global ble_scan_low_power_window_ms 2>/dev/null
-        settings delete global ble_scan_balanced_interval_ms 2>/dev/null
-        settings delete global ble_scan_balanced_window_ms 2>/dev/null
-    fi
-
-    if [ "$DEEP_DOZE_OPT" = "1" ]; then
-        settings put global device_idle_constants "light_after_inactive_to=60000,inactive_to=60000,sensing_to=0,locating_to=0,idle_after_inactive_to=0,idle_pending_to=60000" 2>/dev/null
-    else
-        settings delete global device_idle_constants 2>/dev/null
-    fi
-}
-
-apply_gesture_and_process_settings() {
     TILT_FLAG="$MODDIR/.tilt_was_suppressed"
     if [ "$SUPPRESS_TILT_WAKE" = "1" ]; then
         if [ ! -f "$TILT_FLAG" ]; then
             settings get secure wake_gesture_enabled 2>/dev/null > "$MODDIR/.orig_wake_gesture"
+            settings get global ambient_tilt_to_wake 2>/dev/null > "$MODDIR/.orig_tilt_to_wake"
             touch "$TILT_FLAG"
         fi
         settings put secure wake_gesture_enabled 0 2>/dev/null
-        settings put secure ambient_tilt_to_wake 0 2>/dev/null
+        settings put global ambient_tilt_to_wake 0 2>/dev/null
     elif [ -f "$TILT_FLAG" ]; then
         ORIG_WAKE="$(cat "$MODDIR/.orig_wake_gesture" 2>/dev/null)"
-        if [ "$ORIG_WAKE" = "1" ]; then
-            settings put secure wake_gesture_enabled 1 2>/dev/null
-        fi
+        ORIG_TILT="$(cat "$MODDIR/.orig_tilt_to_wake" 2>/dev/null)"
+        [ -n "$ORIG_WAKE" ] && [ "$ORIG_WAKE" != "null" ] && settings put secure wake_gesture_enabled "$ORIG_WAKE" 2>/dev/null
+        [ -n "$ORIG_TILT" ] && [ "$ORIG_TILT" != "null" ] && settings put global ambient_tilt_to_wake "$ORIG_TILT" 2>/dev/null
         rm -f "$TILT_FLAG"
-    fi
-
-    if [ "$PHANTOM_KILLER_DISABLE" = "1" ]; then
-        device_config put activity_manager max_phantom_processes 2147483647 >/dev/null 2>&1
-        settings put global settings_enable_monitor_phantom_procs false 2>/dev/null
-    else
-        device_config put activity_manager max_phantom_processes 32 >/dev/null 2>&1
-        settings put global settings_enable_monitor_phantom_procs true 2>/dev/null
     fi
 }
 
+ensure_awake_performance_untouched
 apply_aod_display_settings
 apply_aod_brightness_override
-apply_radio_and_doze_settings
-apply_gesture_and_process_settings
+apply_aod_wake_suppression

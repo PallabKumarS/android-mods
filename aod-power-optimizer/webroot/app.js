@@ -3,18 +3,16 @@ const MI_DOZE_NODE = "/sys/class/mi_display/disp-DSI-0/doze_brightness";
 
 const DEFAULT_CONFIG = {
 	HW_AOD_LBM: "1",
-	AOD_RAIL_MODE: "auto",
+	AOD_RAIL_MODE: "lbm",
 	AOD_BRIGHTNESS_OVERRIDE: "0",
 	AOD_CUSTOM_BRIGHTNESS: "1",
-	DOZE_CPU_CAP: "1",
 	LOW_BIT: "1",
 	PROXIMITY_POCKET: "1",
-	MIN_REFRESH_RATE: "60.0",
+	SUPPRESS_AOD_PULSE_WAKE: "1",
+	SUPPRESS_TILT_WAKE: "1",
 	DEEP_DOZE_OPT: "1",
 	WIFI_SCAN_THROTTLE: "1",
 	BLE_SCAN_THROTTLE: "1",
-	SUPPRESS_TILT_WAKE: "0",
-	PHANTOM_KILLER_DISABLE: "1",
 };
 
 let execSeq = 0;
@@ -89,7 +87,7 @@ function parseKeyValues(raw) {
 function formatRailLabel(val) {
 	if (val === "2") return "LP2 / LBM (2)";
 	if (val === "1") return "LP1 / HBM (1)";
-	if (val === "0") return "Normal / LP1 (0)";
+	if (val === "0") return "Awake / Normal (0)";
 	return "Unsupported";
 }
 
@@ -97,7 +95,7 @@ async function refreshSystemStatus() {
 	const script = `
 		BATT=$(dumpsys battery 2>/dev/null | grep -E "level:|temperature:" | tr '\\n' ' ')
 		WAKE=$(dumpsys power 2>/dev/null | grep -m 1 "mWakefulness=" | sed 's/.*mWakefulness=//')
-		FPS=$(dumpsys display 2>/dev/null | grep -m 1 -E "mActiveModeId|mActiveDisplayMode")
+		FPS=$(dumpsys display 2>/dev/null | grep -m 1 -E "mActiveModeId|mActiveDisplayMode|fps=")
 		RAIL="na"
 		[ -r "${MI_DOZE_NODE}" ] && RAIL=$(cat "${MI_DOZE_NODE}" 2>/dev/null)
 		DPID=""
@@ -137,7 +135,7 @@ async function refreshSystemStatus() {
 	}
 
 	if (data.FPS) {
-		const fpsMatch = data.FPS.match(/(\d+(?:\.\d+)?)fps/i);
+		const fpsMatch = data.FPS.match(/(\d+(?:\.\d+)?)\s*fps/i);
 		if (fpsMatch) {
 			document.getElementById("stat-fps").textContent =
 				`${Math.round(Number.parseFloat(fpsMatch[1]))} Hz`;
@@ -163,12 +161,9 @@ async function loadCurrentSettings() {
 		echo "SYS_DOZE_BRT=$(settings get secure doze_brightness 2>/dev/null)"
 		echo "LOW_BIT_LIVE=$(settings get global ambient_low_bit_enabled 2>/dev/null)"
 		echo "PROX_LIVE=$(settings get secure doze_proximity_sensor_enabled 2>/dev/null)"
-		echo "MIN_RATE_LIVE=$(settings get system min_refresh_rate 2>/dev/null)"
-		echo "WIFI_LIVE=$(settings get global wifi_scan_always_enabled 2>/dev/null)"
-		echo "BLE_INT_LIVE=$(settings get global ble_scan_low_power_interval_ms 2>/dev/null)"
-		echo "IDLE_LIVE=$(settings get global device_idle_constants 2>/dev/null)"
-		echo "WAKE_GEST_LIVE=$(settings get secure wake_gesture_enabled 2>/dev/null)"
-		echo "PHANTOM_LIVE=$(settings get global settings_enable_monitor_phantom_procs 2>/dev/null)"
+		echo "DOZE_EN_LIVE=$(settings get secure doze_enabled 2>/dev/null)"
+		echo "TILT_GLOBAL_LIVE=$(settings get global ambient_tilt_to_wake 2>/dev/null)"
+		echo "SCOPE_ACTIVE=$([ -f "${MODDIR}/.doze_scope_active" ] && echo 1 || echo 0)"
 		if [ -r "${MI_DOZE_NODE}" ]; then echo "MI_NODE=supported"; else echo "MI_NODE=missing"; fi
 	`);
 
@@ -177,12 +172,15 @@ async function loadCurrentSettings() {
 	const live = parseKeyValues(parts[1] || "");
 
 	const hwLbm = cfg.HW_AOD_LBM === "1";
+	const railMode = ["lbm", "auto", "hbm"].includes(cfg.AOD_RAIL_MODE)
+		? cfg.AOD_RAIL_MODE
+		: "lbm";
 	document.getElementById("chk-hw-lbm").checked = hwLbm;
-	document.getElementById("sel-rail-mode").value = cfg.AOD_RAIL_MODE || "auto";
+	document.getElementById("sel-rail-mode").value = railMode;
 	updateBadge(
 		"badge-hw-lbm",
 		live.MI_NODE === "supported"
-			? `disp-DSI-0: ${hwLbm ? cfg.AOD_RAIL_MODE.toUpperCase() : "OFF"}`
+			? `disp-DSI-0: ${hwLbm ? railMode.toUpperCase() : "OFF"}`
 			: "Generic Panel",
 		hwLbm && live.MI_NODE === "supported",
 	);
@@ -222,32 +220,34 @@ function populateStandardControls(cfg, live) {
 		live.PROX_LIVE === "1",
 	);
 
-	const rateVal = cfg.MIN_REFRESH_RATE || "60.0";
-	const rateSelect = document.getElementById("sel-min-rate");
-	rateSelect.value = ["60.0", "90.0", "120.0", "0"].includes(rateVal)
-		? rateVal
-		: "60.0";
+	const pulseOpt = cfg.SUPPRESS_AOD_PULSE_WAKE === "1";
+	document.getElementById("chk-suppress-pulse").checked = pulseOpt;
 	updateBadge(
-		"badge-min-rate",
-		`System: ${live.MIN_RATE_LIVE === "null" ? "Default" : live.MIN_RATE_LIVE || "60.0"}`,
-		rateSelect.value === "60.0",
+		"badge-suppress-pulse",
+		pulseOpt
+			? "Stays in 60 Hz LP2 AOD"
+			: `Wakes Screen (${live.DOZE_EN_LIVE || "1"})`,
+		pulseOpt,
 	);
 
-	const dozeCpu = cfg.DOZE_CPU_CAP === "1";
-	document.getElementById("chk-doze-cpu").checked = dozeCpu;
+	const tiltOpt = cfg.SUPPRESS_TILT_WAKE === "1";
+	document.getElementById("chk-suppress-tilt").checked = tiltOpt;
 	updateBadge(
-		"badge-doze-cpu",
-		dozeCpu ? "1.19 GHz / 500 MHz in Doze" : "Uncapped",
-		dozeCpu,
+		"badge-suppress-tilt",
+		tiltOpt
+			? "Pickup Wake Suppressed"
+			: `Active (${live.TILT_GLOBAL_LIVE || "1"})`,
+		tiltOpt,
 	);
+
+	const scopeSuffix =
+		live.SCOPE_ACTIVE === "1" ? "Active in Doze" : "Armed for AOD";
 
 	const deepDoze = cfg.DEEP_DOZE_OPT === "1";
 	document.getElementById("chk-deep-doze").checked = deepDoze;
 	updateBadge(
 		"badge-deep-doze",
-		live.IDLE_LIVE && live.IDLE_LIVE !== "null"
-			? "60s Sensorless"
-			: "AOSP Default",
+		deepDoze ? `60s Sensorless (${scopeSuffix})` : "Disabled",
 		deepDoze,
 	);
 
@@ -255,34 +255,16 @@ function populateStandardControls(cfg, live) {
 	document.getElementById("chk-wifi-scan").checked = wifiOpt;
 	updateBadge(
 		"badge-wifi-scan",
-		`Scan Always: ${live.WIFI_LIVE || "0"}`,
-		live.WIFI_LIVE === "0",
+		wifiOpt ? `Doze-Only (${scopeSuffix})` : "Disabled",
+		wifiOpt,
 	);
 
 	const bleOpt = cfg.BLE_SCAN_THROTTLE === "1";
 	document.getElementById("chk-ble-scan").checked = bleOpt;
 	updateBadge(
 		"badge-ble-scan",
-		live.BLE_INT_LIVE && live.BLE_INT_LIVE !== "null"
-			? `${live.BLE_INT_LIVE}ms / 5% Duty`
-			: "ROM Default",
+		bleOpt ? `5% Duty in AOD (${scopeSuffix})` : "Disabled",
 		bleOpt,
-	);
-
-	const tiltOpt = cfg.SUPPRESS_TILT_WAKE === "1";
-	document.getElementById("chk-suppress-tilt").checked = tiltOpt;
-	updateBadge(
-		"badge-suppress-tilt",
-		tiltOpt ? "Suppressed" : `System (${live.WAKE_GEST_LIVE || "1"})`,
-		tiltOpt,
-	);
-
-	const phantomOpt = cfg.PHANTOM_KILLER_DISABLE === "1";
-	document.getElementById("chk-phantom").checked = phantomOpt;
-	updateBadge(
-		"badge-phantom",
-		`Monitor: ${live.PHANTOM_LIVE || "false"}`,
-		live.PHANTOM_LIVE === "false",
 	);
 }
 
@@ -293,15 +275,13 @@ function collectFormConfig() {
 		AOD_RAIL_MODE: document.getElementById("sel-rail-mode").value,
 		AOD_BRIGHTNESS_OVERRIDE: flag("chk-aod-override"),
 		AOD_CUSTOM_BRIGHTNESS: document.getElementById("rng-aod-brightness").value,
-		DOZE_CPU_CAP: flag("chk-doze-cpu"),
 		LOW_BIT: flag("chk-low-bit"),
 		PROXIMITY_POCKET: flag("chk-proximity"),
-		MIN_REFRESH_RATE: document.getElementById("sel-min-rate").value,
+		SUPPRESS_AOD_PULSE_WAKE: flag("chk-suppress-pulse"),
+		SUPPRESS_TILT_WAKE: flag("chk-suppress-tilt"),
 		DEEP_DOZE_OPT: flag("chk-deep-doze"),
 		WIFI_SCAN_THROTTLE: flag("chk-wifi-scan"),
 		BLE_SCAN_THROTTLE: flag("chk-ble-scan"),
-		SUPPRESS_TILT_WAKE: flag("chk-suppress-tilt"),
-		PHANTOM_KILLER_DISABLE: flag("chk-phantom"),
 	};
 }
 
@@ -338,14 +318,14 @@ window.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("btn-save").addEventListener("click", async () => {
 		await writeAndApplyConfig(
 			collectFormConfig(),
-			"AOD optimizations saved and applied live",
+			"AOD-only optimizations saved and applied live",
 		);
 	});
 
 	document.getElementById("btn-restore").addEventListener("click", async () => {
 		await writeAndApplyConfig(
 			DEFAULT_CONFIG,
-			"Restored recommended v2.0.0 defaults",
+			"Restored recommended v2.1.0 AOD-only defaults",
 		);
 	});
 

@@ -12,10 +12,10 @@ A collection of systemless modifications, KernelSU / Magisk modules, and LSPosed
 | **`PasskeyEnabler.apk`** | HyperOS 1.0–3.0 & Android 14–17 | Standalone LSPosed / Vector Module + Boot Service | **HyperOS Passkey & Third-Party Credential Provider Enabler** (Unlocks Bitwarden, 1Password, Proton Pass as system passkey providers, unmasks stripped AOSP Credential Provider settings, and forces Chrome 3rd-party passkey routing). |
 | **`PlayIntegrity-TrickyStore-AIO.zip`** | HyperOS / MIUI & Clean AOSP | KernelSU / Magisk Module | **All-in-One Play Integrity Suite** (Combines Play Integrity Fork v18 and Tricky Store v1.4.1 with pre-installed Strong Keybox for 3-tier pass). |
 | **`TrickyStore-StrongIntegrity.zip`** | Custom ROMs (Infinity-X, Evolution X) | KernelSU / Magisk Module | **Plug & Play Tricky Store** (Official Tricky Store v1.4.1 pre-configured with Strong Keybox and auto-detected security patch). |
-| **`AutoBrightnessGuard.apk`** | HyperOS & AOSP 14–17 | Standalone LSPosed / Vector Module | **Auto-Brightness Anti-Runaway & Sensor Stabilizer** (Fixes night white-screen brightness runaway via HLG perceptual clamping and suppresses daytime light-sensor flicker; strictly non-AOD). |
+| **`AutoBrightnessGuard.apk`** | HyperOS & AOSP 14–17 | Standalone LSPosed / Vector Module | **Auto-Brightness Anti-Runaway & Sensor Stabilizer (v2.1.0)** (Android 16 & 17 `BrightnessRangeController` HLG perceptual night clamping before hysteresis, temporary manual QS slider override, and non-starving ring-buffer lux deadband; strictly non-AOD). |
 | **`aosp-no-keyboard-chin.zip`** | AOSP / Custom ROMs (Android 14–17) | KernelSU / Magisk Module & ADB | **Removes Keyboard Chin & Hide Button** (eliminates bottom gap and keyboard dismiss arrow). |
 | **`hyperos-aon-aod.zip`** | HyperOS 1.0–3.0 / MIUI 14 | KernelSU / Magisk Module | **Unlocks true Always-On Display** (removes the 10-second limitation systemlessly in Settings). |
-| **`aod-power-optimizer.zip`** | All Rooted Android (10–17) | KernelSU / APatch / Magisk Module with WebUI | **AOD Power Optimizer & Dimmer (v2.0.0)** (Unified AOD battery optimizer & dimmer: cuts 10h AOD drain to <=25% via AMOLED LP2/LBM DDIC rail switching, Doze-only CPU/GPU clamping, BLE/Wi-Fi wakeup throttling preserving TWS earbud auto-connect, and optional AOD brightness override respecting ROM 1% default). |
+| **`aod-power-optimizer.zip`** | All Rooted Android (10–17) | KernelSU / APatch / Magisk Module with WebUI | **AOD Power Optimizer & Dimmer (v2.1.0)** (Strictly AOD-only architecture with zero Awake/120Hz impact: locks 4.5-nit AMOLED LP2/LBM rail & blocks vendor `sensor-notifier` 60-nit daylight HBM drain, keeps notifications inside 60 Hz AOD without 10s `STATE_ON` wakes, scopes BLE/Wi-Fi/Doze throttling strictly to AOD, and respects ROM AOD brightness by default). |
 
 ---
 
@@ -95,20 +95,23 @@ Feature-rich custom ROMs (such as Project Infinity-X, Evolution X, and CrDroid) 
 
 ---
 
-## Component 4: `AutoBrightnessGuard.apk` (Auto-Brightness Anti-Runaway & Sensor Stabilizer)
+## Component 4: `AutoBrightnessGuard.apk` (Auto-Brightness Anti-Runaway & Sensor Stabilizer v2.1.0)
 
 ### Purpose & Scope Separation
-`AutoBrightnessGuard.apk` (`com.n3th3r.autobrightnessguard`) is a dedicated, lightweight (~38 KB, zero AndroidX bloat) LSPosed / Vector module focused **exclusively on interactive screen auto-brightness bugs** in custom ROMs. All Always-On Display (AOD) dimming and power controls have been unified into **`aod-power-optimizer.zip` v2.0.0**.
+`AutoBrightnessGuard.apk` (`com.n3th3r.autobrightnessguard`) is a dedicated, ultra-lightweight (~30 KB, zero AndroidX bloat, `minSdkVersion=29`, `targetSdkVersion=36`) LSPosed / Vector module focused **exclusively on interactive screen auto-brightness bugs** in Android 14–17 custom ROMs. All Always-On Display (AOD) dimming and power controls live separately in **`aod-power-optimizer.zip` v2.1.0**.
 
-### Key Features
-- **Night White-Background Anti-Runaway Cap (HLG Perceptual Clamping):**
-  - When reading white web pages, comics, or documents in a dark room (`mAmbientLux <= threshold`, default `25 lux`), light from the OLED panel reflects off the user's face/hands back into the top ambient light sensor (`tcs3701`), creating a positive feedback loop that ramps screen brightness toward 100%.
-  - Hooks `AutomaticBrightnessController.updateAutoBrightness(boolean, boolean)` and converts the configured perceptual slider cap (default `25%`, range `10%–50%`) through Android's Hybrid Log-Gamma (HLG) curve against `getNormalMaxBrightness()` (`hbmMax`), clamping `mScreenAutoBrightness` and `mRawScreenAutoBrightness` to true dark-room nits so self-reflection runaway cannot ignite.
-- **Daytime Jitter Debounce & Asymmetric EMA Lux Smoothing:**
-  - Hooks `AutomaticBrightnessController.handleLightSensorEvent(long, float)` to suppress rapid minor lux fluctuations (`diffRatio < threshold` within the configurable debounce window, default `25%` / `2.0s`).
-  - Applies an asymmetric Exponential Moving Average filter (`0.20` upward / `0.40` downward) for gradual transitions while automatically resetting stale smoothing state after `> 15s` screen-off gaps so wake-up brightness response is instantaneous.
+### Key Features (Updated for Android 16 & 17)
+- **Pre-Hysteresis Night White-Screen Anti-Runaway Cap (`clampScreenBrightness` + `getAutomaticScreenBrightness`):**
+  - On Android 17 (SDK 37), `AutomaticBrightnessController.updateAutoBrightness` computes hysteresis thresholds (`mScreenBrighteningThreshold` / `mScreenDarkeningThreshold`) and invokes `mCallbacks.updateBrightness()` *before* returning. `AutoBrightnessGuard` v2.1.0 hooks `clampScreenBrightness(float)` directly inside the calculation pipeline (plus `getAutomaticScreenBrightness` as belt-and-suspenders) so hysteresis thresholds and `DisplayPowerController` updates always see the capped dark-room value immediately.
+  - Resolves `[brightnessMin, normalBrightnessMax]` via Android 17's `BrightnessRangeController.getCurrentBrightnessMin()` / `getNormalBrightnessMax()` (`0.4995103f` normal max vs `1.0f` outdoor HBM), with fallback to `BrightnessMappingStrategy.getNormalMaxBrightness()` on Android 15/16, ensuring `10%` in the app maps to an exact **`10.0%`** on the Quick Settings HLG brightness slider.
+  - Applies `+20%` (minimum `+5 lux`) exit hysteresis so OLED white-page self-reflection near the lux threshold cannot oscillate out of the night cap.
+- **Temporary Manual Quick Settings Slider Override:**
+  - Hooks `setScreenBrightnessByUser(float, float)` and `setLightSensorEnabled(boolean)`: dragging the Quick Settings brightness slider manually above the night cap is obeyed smoothly without snapping back, and automatically resets to protected mode as soon as the screen turns off.
+- **Ring-Buffer-Safe Daytime Jitter Deadband & Responsive EMA Smoothing:**
+  - Never drops `handleLightSensorEvent(long, float)` timestamps (preventing Android 17 `AmbientLightRingBuffer.prune()` starvation) and bypasses filtering while `!mAmbientLuxValid` for 0 ms screen-wake initialization.
+  - Stabilizes sub-threshold lux micro-jitter (`15%` / `0.8s` default) and applies responsive EMA smoothing (`0.45` upward / `0.55` downward).
 - **Live Configuration Without Reboot:**
-  - Uses `xposedminversion = 93` (`MODE_WORLD_READABLE` IPC `XSharedPreferences`) so slider and toggle adjustments apply live in `system_server`.
+  - Throttled `XSharedPreferences` reload (`1.5s` interval) picks up slider and toggle changes live in `system_server` without filesystem `stat()` overhead on the sensor thread.
 
 ### Installation & Scope Configuration
 
@@ -120,7 +123,7 @@ Feature-rich custom ROMs (such as Project Infinity-X, Evolution X, and CrDroid) 
 #### Method B: Via ADB / Root CLI (Vector v2+)
 ```bash
 adb push AutoBrightnessGuard.apk /data/local/tmp/
-adb shell "su -c 'pm install -r /data/local/tmp/AutoBrightnessGuard.apk && /data/adb/lspd/cli modules enable com.n3th3r.autobrightnessguard && /data/adb/lspd/cli scope set com.n3th3r.autobrightnessguard android/0 && rm -f /data/local/tmp/AutoBrightnessGuard.apk'"
+adb shell "su -c 'pm install -r /data/local/tmp/AutoBrightnessGuard.apk && /data/adb/lspd/cli modules enable com.n3th3r.autobrightnessguard && /data/adb/lspd/cli scope set com.n3th3r.autobrightnessguard system/0 && rm -f /data/local/tmp/AutoBrightnessGuard.apk'"
 ```
 
 ---
@@ -205,29 +208,30 @@ adb shell "su -c 'cp /data/local/tmp/passkey_enabler.sh /data/adb/service.d/pass
 
 ---
 
-## Component 8: `aod-power-optimizer.zip` (Unified AOD Power Optimizer & Dimmer v2.0.0 with WebUI)
+## Component 8: `aod-power-optimizer.zip` (Unified AOD Power Optimizer & Dimmer v2.1.0 with WebUI)
 
-### The Problem on AOSP & Custom ROMs
-On Xiaomi / Qualcomm AMOLED devices (such as POCO X6 5G / Redmi Note 13 Pro 5G `garnet` with Video-Mode DSI panels `mdss_dsi_n16_36_0d_0a_dsc_vid`), migrating from stock Xiaomi HyperOS to AOSP custom ROMs (Project Infinity-X, Evolution X, LineageOS, CrDroid) causes heavy Always-On Display (AOD) battery drain (**45%–100% over 10 hours**, vs **<= 25% over 10 hours** on stock HyperOS).
+### Strict AOD-Only Architecture (Zero Awake / 120 Hz UI Impact)
+Version `2.1.0` enforces a strict **AOD-only boundary**: while the phone is **Awake**, **zero** interactive settings, refresh rates (`min_refresh_rate` / `peak_refresh_rate` / `extreme_refresh_rate` 120 Hz Always), CPU frequencies, GPU frequencies, process limits, or Awake radio scan settings are modified. Every dynamic optimization activates strictly upon entering AOD (`Dozing`) and restores stock Awake state immediately upon waking.
 
-### Root Causes Diagnosed & Fixed in v2.0.0
-1. **AMOLED DDIC Stuck in High-Voltage `LP1` Rail (`~75 mA` excess continuous draw):** When entering `screenState=DOZE`, kernel `msm_drm` executes `dsi_panel_set_lp1` (`doze_brightness = 0`, 60-nit high-voltage DDIC charge pump) and custom ROMs lack Xiaomi's userspace service to switch `/sys/class/mi_display/disp-DSI-0/doze_brightness` to `2` (`DOZE_BRIGHTNESS_LBM` / `LP2` low-voltage DDIC rail). Live PMIC fuel-gauge benchmarking proved switching `0 -> 2` immediately drops Doze discharge current by **~27% (~75 mA / ~750 mAh over 10 hours)**.
-2. **PowerHAL Left in `INTERACTIVE=true` During All 10 Hours of AOD:** Because Video-Mode DSI panels keep 1 SDE pipe scanning at 60 Hz (`config_powerDecoupleInteractiveModeFromDisplay = false`), Cortex-A78 big cores (`2.40 GHz`) and Adreno GPU (`940 MHz`) boost on every 60-second `TIME_TICK` clock update and Wi-Fi packet wakeup.
-3. **Wi-Fi Wakeup Storms, Aggressive Custom-ROM BLE Duty Cycles, & Deep Doze Sensor Wakes:** Custom ROMs leave `wifi_wakeup_enabled = 1` and boost background BLE scan windows (`1400/140 ms` and `730/183 ms`, up to 25% radio duty cycle hit by GMS `NearbySharing`), plus wake accelerometer and GPS for 15 seconds on every Deep Doze maintenance window.
-4. **Unified AOD Brightness Control (Respects System `1%` Default):** Merges AOD dimming into the same flashable module while **respecting the ROM's native `Settings.Secure.doze_brightness` (e.g. `1%`) by default** (`AOD_BRIGHTNESS_OVERRIDE=0`), with an optional WebUI override slider (`1%–50%`) that cleanly restores the original system value when toggled off.
-
-### How It Works Internally
-- **Zero-Polling Event-Driven Doze Daemon (`doze_daemon.sh`):** Passively blocks on `logcat -b system -T 1 -s PowerManagerService:I DreamManagerService:D LocalDisplayAdapter:I` (0% CPU and zero timers during sleep):
-  - On `Dozing...` + `screenState=DOZE` + `SF.setDisplayPowerMode`: switches `/sys/class/mi_display/disp-DSI-0/doze_brightness` to `2` (`LP2 / LBM` in Auto mode when brightness `<= 15%`, or `1` `HBM` when `> 15%`) and applies `garnet`'s `LOW_POWER` SoC caps (`cpu0..3: 1.32 GHz`, `cpu4..7: 1.19 GHz`, `core_ctl/min_cpus: 0`, `kgsl: 500 MHz`).
-  - On `Waking up`: immediately restores full Awake CPU (`0:9999999 .. 7:9999999`) and GPU (`940 MHz`) frequencies and resets `doze_brightness` to `0`.
-- **Earbud-Safe Idle BLE Scan Throttling:** Keeps Bluetooth **ON** and Classic `SCAN_MODE_CONNECTABLE` completely untouched so TWS earbuds auto-connect immediately on case open, while tuning background BLE scan intervals to `10240 / 512 ms` (5% duty) and `4096 / 512 ms` (12.5% duty) to cut idle BLE drain by ~75%.
-- **Fast Sensorless Deep Doze & Wi-Fi Sleep Policy:** Configures `device_idle_constants` (`inactive_to=60000,sensing_to=0,locating_to=0`), disables background Wi-Fi wakeup/scanning, enables 16-bit `ambient_low_bit_enabled`, enables `doze_proximity_sensor_enabled`, and sets `min_refresh_rate = 60.0`.
+### Root Causes Diagnosed & Fixed in v2.1.0
+1. **Vendor `/vendor/bin/sensor-notifier` (`AodNotifier.cpp`) Secretly Forcing 60-Nit HBM (`bl_lvl = 252`) in Indoor Daylight:**
+   - On Xiaomi/Qualcomm `garnet` custom ROMs, `sensor-notifier` listens to `xiaomi.sensor.aod` (`0x0100050c`) and issues direct C++ `ioctl(/dev/mi_display/disp_feature)` calls (`mi_disp_ioctl_set_doze_brightness = 1` -> MIPI `0x51` `bl_lvl = 252`, 60 nits) continuously from sunrise through afternoon—bypassing `system_server` completely and drawing **12.6x higher backlight level** than the 4.5-nit `LP2 / LBM` rail (`doze_brightness = 2`, `bl_lvl = 20`).
+   - `doze_daemon.sh` v2.1.0 monitors kernel + system events via native C++ regex filtering (`logcat -b system,kernel -e ...`) and immediately clamps `sensor-notifier` HBM overrides back to `2` (`bl_lvl = 20` LP2 rail) in `Lock LBM` mode.
+2. **Repeated 10–20s Full-Screen `STATE_ON` Wakeups During Untouched AOD (`DOZE_PULSING` & False `pickup` Vibrations):**
+   - Overnight battery timelines revealed 30+ full-screen transitions out of `STATE_DOZE` (`bl_lvl = 20`) into full-voltage `Power mode (On)` (`bl_lvl = 209`, 50 Hz `NonUi` proximity polling, active touchscreen IC) caused by `Settings.Secure.doze_enabled=1` ("Wake screen for notifications") and hypersensitive `pickup Wakeup` (`Settings.Global.ambient_tilt_to_wake=1`).
+   - v2.1.0 keeps incoming notifications smoothly inside 60 Hz LP2 `DOZE_AOD` (updating AOD clock and notification icons without `STATE_ON` wakes) and suppresses false table-vibration pickup wakes while preserving Double-Tap, Single-Tap, Screen-Off UDFPS fingerprint, and Power button wake.
+3. **Eliminated Interactive UI Transition Lag:**
+   - Removed `min_refresh_rate = 60.0` override (AMOLED `powerMode=Doze` already scans at `60.00 Hz` natively in HWC even when Awake UI is locked to `120 Hz Always`) and removed `msm_performance` / `kgsl-3d0` frequency clamping so wake/unlock animations run at full native 120 Hz speed.
+4. **AOD-Scoped Radio & Deep Doze Session Guard (Preserves Mobile Data & Instant TWS Earbud Auto-Connect):**
+   - Snapshots Awake `device_idle_constants`, `wifi_scan_always_enabled`, `wifi_wakeup_enabled`, and `ble_scan_*` values before entering `Dozing`, applies 60s sensorless Deep Doze and 5% BLE duty strictly during AOD, and restores exact Awake values immediately on `Waking up`. Never touches Mobile Data QS, Bluetooth QS, or Classic Bluetooth `SCAN_MODE_CONNECTABLE`.
+5. **Respects System AOD Brightness by Default:**
+   - Leaves ROM `Settings.Secure.doze_brightness` (e.g. `1%` or `5%`) untouched by default (`AOD_BRIGHTNESS_OVERRIDE=0`), with an optional `1%–50%` override slider in WebUI.
 
 ### Interactive KernelSU / APatch WebUI
 Accessible directly inside **KernelSU**, **KernelSU Next**, **APatch**, or **MMRL Manager**:
-- **Live Hardware Monitor:** Real-time battery/temperature, power state, active AMOLED DDIC rail (`LP2 / LBM (2)` vs `Normal (0)`), Doze daemon PID status, effective AOD brightness (`System` vs `Custom`), and refresh rate.
-- **AOD Dimmer & Hardware Rail Controls:** Toggle `LP2 / LBM` rail switching, select DDIC rail target (`Auto`, `Force LBM`, `Force HBM`), optionally override system AOD brightness (`1%–50%`, off by default), and configure Low-Bit Mode, Proximity Pocket Shutoff, and Minimum Refresh Rate.
-- **SoC, Radio & Deep Sleep Controls:** Individual toggles for Doze-Only CPU/GPU Clamp, Fast Sensorless Deep Doze, Wi-Fi Wakeup Suppression, Earbud-Safe BLE Duty Throttling, Optional Lift/Tilt Wake Suppression, and Phantom Process Killer Disabler.
+- **Live Hardware Monitor:** Real-time battery/temperature, power state (`Awake` vs `Dozing`), active AMOLED DDIC rail (`LP2 / LBM (2)` vs `Awake (0)`), Doze daemon PID, effective AOD brightness (`System` vs `Custom`), and active display refresh rate.
+- **AOD Panel Rail & Brightness:** Toggle `LP2 / LBM` hardware rail, choose `Lock LBM / LP2 (4.5 nits)`, `Auto (Allow Outdoor HBM)`, or `Force HBM (60 nits)`, optionally override system AOD brightness (`1%–50%`), and toggle Ambient Low-Bit Mode and Proximity Pocket Shutoff.
+- **AOD-Only Wake & Doze Session Guard:** Toggle Keep Notifications Inside AOD, Suppress Lift / Table-Vibration Wake, AOD-Scoped Fast Deep Doze, AOD-Scoped Wi-Fi Scan Guard, and AOD-Scoped Earbud-Safe BLE Duty Throttle.
 
 ### Installation
 1. Flash **`aod-power-optimizer.zip`** in KernelSU Next, KernelSU, APatch, or Magisk.
@@ -256,10 +260,10 @@ All pre-built binaries and flashable packages are published under [Releases](htt
 | **`PasskeyEnabler.apk`** | HyperOS 1/2/3 & Android 14–17 | Standalone LSPosed / Vector module to enable third-party passkeys (Bitwarden) on HyperOS. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/PasskeyEnabler.apk) |
 | **`PlayIntegrity-TrickyStore-AIO.zip`** | HyperOS & Clean AOSP | All-in-one suite: Play Integrity Fork v18 + Tricky Store v1.4.1 + Strong Keybox. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/PlayIntegrity-TrickyStore-AIO.zip) |
 | **`TrickyStore-StrongIntegrity.zip`** | Custom ROMs (Infinity-X, etc.) | Standalone Tricky Store v1.4.1 pre-loaded with Strong Keybox and auto security patch. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/TrickyStore-StrongIntegrity.zip) |
-| **`AutoBrightnessGuard.apk`** | HyperOS & AOSP 14–17 | Standalone LSPosed / Vector module for night white-screen anti-runaway cap & daytime sensor anti-flicker. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/AutoBrightnessGuard.apk) |
+| **`AutoBrightnessGuard.apk`** | HyperOS & AOSP 14–17 | Standalone LSPosed / Vector module v2.1.0 for Android 16 & 17 night white-screen anti-runaway cap & sensor stabilizer. | [Download APK](https://github.com/PallabKumarS/android-mods/releases/latest/download/AutoBrightnessGuard.apk) |
 | **`aosp-no-keyboard-chin.zip`** | AOSP 14–17 | KernelSU / Magisk module to remove the keyboard chin spacer and dismiss button. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/aosp-no-keyboard-chin.zip) |
 | **`hyperos-aon-aod.zip`** | HyperOS 1/2/3 | KernelSU / Magisk module to unlock permanent Always-On Display. | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/hyperos-aon-aod.zip) |
-| **`aod-power-optimizer.zip`** | All Rooted Android (10–17) | Unified AOD Power Optimizer & Dimmer v2.0.0 with WebUI (AMOLED LP2/LBM rail, Doze CPU/GPU clamp, & optional AOD brightness control). | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/aod-power-optimizer.zip) |
+| **`aod-power-optimizer.zip`** | All Rooted Android (10–17) | Strictly AOD-only Power Optimizer & Dimmer v2.1.0 with WebUI (zero Awake/120Hz impact, AMOLED LP2/LBM rail lock, & AOD wake guard). | [Download ZIP](https://github.com/PallabKumarS/android-mods/releases/latest/download/aod-power-optimizer.zip) |
 
 ---
 

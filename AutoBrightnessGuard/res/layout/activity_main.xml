@@ -147,7 +147,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Stops bright white pages from reflecting into the light sensor and ramping brightness to 100% in the dark"
+                            android:text="Clamps auto-brightness before hysteresis and BrightnessRangeController updates in dark rooms"
                             android:textSize="12.5sp"
                             android:textColor="#8E8E98" />
                     </LinearLayout>
@@ -195,7 +195,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="8dp"
-                    android:text="Maximum auto-brightness allowed in dark environments (10% - 50%)"
+                    android:text="Exact Quick Settings slider cap in dark environments (5% - 50%)"
                     android:textSize="12sp"
                     android:textColor="#8E8E98" />
 
@@ -203,8 +203,8 @@
                     android:id="@+id/seekbar_night_max_cap"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:max="40"
-                    android:progress="15" />
+                    android:max="45"
+                    android:progress="20" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -236,7 +236,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="8dp"
-                    android:text="Ambient lux threshold below which Night Runaway Cap engages (5 - 60 lux)"
+                    android:text="Ambient lux threshold below which Night Runaway Cap engages (5 - 80 lux)"
                     android:textSize="12sp"
                     android:textColor="#8E8E98" />
 
@@ -244,8 +244,51 @@
                     android:id="@+id/seekbar_night_lux_threshold"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:max="55"
+                    android:max="75"
                     android:progress="20" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="14dp"
+                    android:background="#2A2A32" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Allow Manual QS Slider Override"
+                            android:textSize="14.5sp"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Temporarily obeys manual slider drags above cap until the screen turns off"
+                            android:textSize="12sp"
+                            android:textColor="#8E8E98" />
+                    </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/switch_manual_override"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp" />
+                </LinearLayout>
             </LinearLayout>
 
             <TextView
@@ -282,7 +325,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Daytime Jitter Debounce"
+                            android:text="Daytime Jitter Deadband"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="#FFFFFF" />
@@ -291,7 +334,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Suppresses rapid ambient light sensor jitter and shadow flicker"
+                            android:text="Stabilizes sub-threshold lux jitter without starving Android 17 AmbientLightRingBuffer"
                             android:textSize="12.5sp"
                             android:textColor="#8E8E98" />
                     </LinearLayout>
@@ -328,7 +371,7 @@
                         android:id="@+id/tv_diff_threshold"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="25%"
+                        android:text="15%"
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:textColor="#0A84FF" />
@@ -339,7 +382,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="8dp"
-                    android:text="Minimum percentage change required within throttle window"
+                    android:text="Minimum percentage shift required within deadband window"
                     android:textSize="12sp"
                     android:textColor="#8E8E98" />
 
@@ -348,7 +391,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:max="40"
-                    android:progress="15" />
+                    android:progress="5" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -361,7 +404,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Sensor Debounce Window"
+                        android:text="Sensor Deadband Window"
                         android:textSize="14sp"
                         android:textColor="#FFFFFF" />
 
@@ -369,7 +412,7 @@
                         android:id="@+id/tv_throttle_interval"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="2.0s"
+                        android:text="0.8s"
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:textColor="#0A84FF" />
@@ -380,7 +423,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="8dp"
-                    android:text="Minimum interval before accepting small lux shifts"
+                    android:text="Hold duration before accepting minor lux fluctuations (0.2s - 2.0s)"
                     android:textSize="12sp"
                     android:textColor="#8E8E98" />
 
@@ -413,7 +456,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Asymmetric EMA Lux Smoothing"
+                            android:text="Responsive EMA Lux Smoothing"
                             android:textSize="14.5sp"
                             android:textStyle="bold"
                             android:textColor="#FFFFFF" />
@@ -422,7 +465,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Low-pass filter (0.20 upward / 0.40 downward) for gradual transitions"
+                            android:text="Fast low-pass filter (0.45 upward / 0.55 downward) tuned for Android 16 &amp; 17"
                             android:textSize="12sp"
                             android:textColor="#8E8E98" />
                     </LinearLayout>
@@ -453,7 +496,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:gravity="center"
-                android:text="Scope: System Framework (android). Changes apply live without reboot."
+                android:text="Scope: System Framework (android). Settings reload live within 1.5s."
                 android:textSize="12sp"
                 android:textColor="#7A7A86" />
 

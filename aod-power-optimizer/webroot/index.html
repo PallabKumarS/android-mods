@@ -10,7 +10,7 @@
 	<header class="app-header">
 		<div class="header-container">
 			<h1 class="header-title">AOD Power Optimizer &amp; Dimmer</h1>
-			<p class="header-subtitle">v2.0.0 &middot; Unified AMOLED LP2 Rail, Doze Regulator &amp; Brightness Control</p>
+			<p class="header-subtitle">v2.1.0 &middot; Strictly AOD-Only AMOLED LP2 Rail &amp; Wake Guard (Zero Awake / 120Hz Impact)</p>
 		</div>
 	</header>
 
@@ -50,14 +50,14 @@
 
 		<section class="section-container">
 			<div class="section-header">
-				<h2>AOD Dimmer &amp; AMOLED Hardware Rail</h2>
+				<h2>AOD Panel Rail &amp; Brightness</h2>
 			</div>
 			<div class="grid-fluid">
 				<div class="config-card">
 					<div class="card-content">
 						<div class="card-text">
 							<h3>AMOLED Low-Brightness Rail (LP2 / LBM)</h3>
-							<p>Switches Xiaomi/Qualcomm DSI panels from high-voltage LP1 to low-voltage LP2/LBM charge pump during AOD (~75 mA drop).</p>
+							<p>Switches Xiaomi/Qualcomm DSI panels to the 4.5-nit LP2/LBM charge pump (bl_lvl=20) strictly during AOD and blocks vendor sensor-notifier from forcing 60-nit HBM (bl_lvl=252) in indoor daylight.</p>
 						</div>
 						<label class="switch" for="chk-hw-lbm" aria-label="Toggle AMOLED Low-Brightness Rail">
 							<span class="sr-only">Toggle AMOLED Low-Brightness Rail</span>
@@ -68,9 +68,9 @@
 					<div class="card-subrow">
 						<label class="subrow-label" for="sel-rail-mode">DDIC Rail Target</label>
 						<select id="sel-rail-mode" class="select-dropdown">
-							<option value="auto">Auto (LBM &le;15%, HBM &gt;15%)</option>
-							<option value="lbm">Force LBM / LP2 (Lowest Power)</option>
-							<option value="hbm">Force HBM / LP1 (Outdoor Bright)</option>
+							<option value="lbm">Lock LBM / LP2 (4.5 nits, Lowest Drain)</option>
+							<option value="auto">Auto (LBM Entry, Allow Outdoor HBM)</option>
+							<option value="hbm">Force HBM / LP1 (60 nits Outdoor)</option>
 						</select>
 					</div>
 					<div class="card-meta">
@@ -82,7 +82,7 @@
 					<div class="card-content">
 						<div class="card-text">
 							<h3>Override System AOD Brightness</h3>
-							<p>Off by default to respect your ROM's native AOD brightness (e.g. 1%). Turn on to enforce a custom AOD level.</p>
+							<p>Off by default to respect your ROM's native AOD brightness (e.g. 1% or 5%). Turn on to enforce a custom AOD level.</p>
 						</div>
 						<label class="switch" for="chk-aod-override" aria-label="Toggle Override System AOD Brightness">
 							<span class="sr-only">Toggle Override System AOD Brightness</span>
@@ -106,7 +106,7 @@
 					<div class="card-content">
 						<div class="card-text">
 							<h3>Ambient Low-Bit Mode</h3>
-							<p>Switches AOD framebuffer to 16-bit color, reducing display controller memory bandwidth in Doze.</p>
+							<p>Switches AOD framebuffer to low-bit color during Doze, reducing display controller bandwidth.</p>
 						</div>
 						<label class="switch" for="chk-low-bit" aria-label="Toggle Ambient Low-Bit Mode">
 							<span class="sr-only">Toggle Ambient Low-Bit Mode</span>
@@ -123,7 +123,7 @@
 					<div class="card-content">
 						<div class="card-text">
 							<h3>Proximity Pocket Shutoff</h3>
-							<p>Powers down the AMOLED panel completely when face-down or inside a pocket.</p>
+							<p>Powers down the AMOLED panel completely when face-down or inside a pocket during AOD.</p>
 						</div>
 						<label class="switch" for="chk-proximity" aria-label="Toggle Proximity Pocket Shutoff">
 							<span class="sr-only">Toggle Proximity Pocket Shutoff</span>
@@ -135,105 +135,36 @@
 						<span class="badge" id="badge-proximity">Secure: --</span>
 					</div>
 				</div>
-
-				<div class="config-card">
-					<div class="card-content">
-						<div class="card-text">
-							<h3>Minimum Refresh Rate</h3>
-							<p>Allows the display to step down to 60 Hz cleanly during AOD and idle states.</p>
-						</div>
-						<select id="sel-min-rate" class="select-dropdown" aria-label="Minimum Refresh Rate">
-							<option value="60.0">60 Hz (Recommended)</option>
-							<option value="90.0">90 Hz</option>
-							<option value="120.0">120 Hz</option>
-							<option value="0">System Default</option>
-						</select>
-					</div>
-					<div class="card-meta">
-						<span class="badge" id="badge-min-rate">System: --</span>
-					</div>
-				</div>
 			</div>
 		</section>
 
 		<section class="section-container">
 			<div class="section-header">
-				<h2>Doze SoC, Radio &amp; Deep Sleep</h2>
+				<h2>AOD-Only Wake &amp; Doze Session Guard</h2>
 			</div>
 			<div class="grid-fluid">
 				<div class="config-card">
 					<div class="card-content">
 						<div class="card-text">
-							<h3>Doze-Only CPU &amp; GPU Clamp</h3>
-							<p>Caps big cores to 1.19 GHz and GPU to 500 MHz strictly during AOD ticks; restores full speed immediately on wake.</p>
+							<h3>Keep Notifications Inside AOD</h3>
+							<p>Stops incoming notifications from pulling the display out of 60 Hz LP2 AOD into 10-second full-voltage STATE_ON wakes. AOD clock and notification icons update normally.</p>
 						</div>
-						<label class="switch" for="chk-doze-cpu" aria-label="Toggle Doze-Only CPU and GPU Clamp">
-							<span class="sr-only">Toggle Doze-Only CPU and GPU Clamp</span>
-							<input type="checkbox" id="chk-doze-cpu">
+						<label class="switch" for="chk-suppress-pulse" aria-label="Toggle Keep Notifications Inside AOD">
+							<span class="sr-only">Toggle Keep Notifications Inside AOD</span>
+							<input type="checkbox" id="chk-suppress-pulse">
 							<span class="slider"></span>
 						</label>
 					</div>
 					<div class="card-meta">
-						<span class="badge" id="badge-doze-cpu">Policy: --</span>
+						<span class="badge" id="badge-suppress-pulse">Pulse: --</span>
 					</div>
 				</div>
 
 				<div class="config-card">
 					<div class="card-content">
 						<div class="card-text">
-							<h3>Fast Sensorless Deep Doze</h3>
-							<p>Enters Deep Doze in 60s and skips 15s accelerometer and GPS wake windows on maintenance ticks.</p>
-						</div>
-						<label class="switch" for="chk-deep-doze" aria-label="Toggle Fast Sensorless Deep Doze">
-							<span class="sr-only">Toggle Fast Sensorless Deep Doze</span>
-							<input type="checkbox" id="chk-deep-doze">
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="card-meta">
-						<span class="badge" id="badge-deep-doze">DeviceIdle: --</span>
-					</div>
-				</div>
-
-				<div class="config-card">
-					<div class="card-content">
-						<div class="card-text">
-							<h3>Suppress Wi-Fi Wakeup Storms</h3>
-							<p>Disables background Wi-Fi location scanning, auto-wakeup, and recommendation wakes while sleeping.</p>
-						</div>
-						<label class="switch" for="chk-wifi-scan" aria-label="Toggle Suppress Wi-Fi Wakeup Storms">
-							<span class="sr-only">Toggle Suppress Wi-Fi Wakeup Storms</span>
-							<input type="checkbox" id="chk-wifi-scan">
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="card-meta">
-						<span class="badge" id="badge-wifi-scan">Global: --</span>
-					</div>
-				</div>
-
-				<div class="config-card">
-					<div class="card-content">
-						<div class="card-text">
-							<h3>Throttle Idle BLE Scan Duty</h3>
-							<p>Cuts background BLE scan duty by 75% while keeping Bluetooth ON and connectable for instant TWS earbud auto-connect.</p>
-						</div>
-						<label class="switch" for="chk-ble-scan" aria-label="Toggle Throttle Idle BLE Scan Duty">
-							<span class="sr-only">Toggle Throttle Idle BLE Scan Duty</span>
-							<input type="checkbox" id="chk-ble-scan">
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="card-meta">
-						<span class="badge" id="badge-ble-scan">BLE Duty: --</span>
-					</div>
-				</div>
-
-				<div class="config-card">
-					<div class="card-content">
-						<div class="card-text">
-							<h3>Suppress Lift / Tilt Wake</h3>
-							<p>Optional: disables pickup/tilt wake gestures so motion does not wake the screen from AOD.</p>
+							<h3>Suppress Lift / Table-Vibration Wake</h3>
+							<p>Stops hypersensitive pickup sensor vibrations from waking the 120 Hz lockscreen out of AOD. Preserves Double-Tap, UDFPS fingerprint, and Power button wake.</p>
 						</div>
 						<label class="switch" for="chk-suppress-tilt" aria-label="Toggle Suppress Lift and Tilt Wake">
 							<span class="sr-only">Toggle Suppress Lift and Tilt Wake</span>
@@ -249,17 +180,51 @@
 				<div class="config-card">
 					<div class="card-content">
 						<div class="card-text">
-							<h3>Disable Phantom Process Killer</h3>
-							<p>Prevents Android 12–17 from terminating background child processes and isolated services.</p>
+							<h3>AOD-Scoped Fast Deep Doze</h3>
+							<p>Applied strictly on entering AOD and restored immediately on wake: enters Deep Doze in 60s without 15s accelerometer/GPS sensing windows.</p>
 						</div>
-						<label class="switch" for="chk-phantom" aria-label="Toggle Disable Phantom Process Killer">
-							<span class="sr-only">Toggle Disable Phantom Process Killer</span>
-							<input type="checkbox" id="chk-phantom">
+						<label class="switch" for="chk-deep-doze" aria-label="Toggle AOD-Scoped Fast Deep Doze">
+							<span class="sr-only">Toggle AOD-Scoped Fast Deep Doze</span>
+							<input type="checkbox" id="chk-deep-doze">
 							<span class="slider"></span>
 						</label>
 					</div>
 					<div class="card-meta">
-						<span class="badge" id="badge-phantom">Monitor: --</span>
+						<span class="badge" id="badge-deep-doze">Doze-Only: --</span>
+					</div>
+				</div>
+
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>AOD-Scoped Wi-Fi Scan Guard</h3>
+							<p>Suppresses background Wi-Fi location scan wakes strictly while Dozing; restores stock Awake Wi-Fi scan behavior immediately on wake.</p>
+						</div>
+						<label class="switch" for="chk-wifi-scan" aria-label="Toggle AOD-Scoped Wi-Fi Scan Guard">
+							<span class="sr-only">Toggle AOD-Scoped Wi-Fi Scan Guard</span>
+							<input type="checkbox" id="chk-wifi-scan">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-wifi-scan">Doze-Only: --</span>
+					</div>
+				</div>
+
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>AOD-Scoped BLE Duty Throttle</h3>
+							<p>Throttles background BLE scan duty strictly during AOD while keeping Bluetooth ON and connectable for instant TWS earbud auto-connect; restores stock values on wake.</p>
+						</div>
+						<label class="switch" for="chk-ble-scan" aria-label="Toggle AOD-Scoped BLE Duty Throttle">
+							<span class="sr-only">Toggle AOD-Scoped BLE Duty Throttle</span>
+							<input type="checkbox" id="chk-ble-scan">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-ble-scan">Doze-Only: --</span>
 					</div>
 				</div>
 			</div>

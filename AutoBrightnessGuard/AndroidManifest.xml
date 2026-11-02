@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.n3th3r.autobrightnessguard"
-    android:versionCode="2"
-    android:versionName="2.0.0">
+    android:versionCode="3"
+    android:versionName="2.1.0">
+
+    <uses-sdk
+        android:minSdkVersion="29"
+        android:targetSdkVersion="36" />
 
     <application
         android:label="@string/app_name"
@@ -16,7 +20,7 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="Fixes custom ROM auto-brightness night white-screen runaway and daytime ambient light sensor flicker" />
+            android:value="Android 16 and 17 auto-brightness night white-screen runaway cap and ambient light sensor stabilizer" />
         <meta-data
             android:name="xposedminversion"
             android:value="93" />
