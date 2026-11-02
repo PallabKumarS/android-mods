@@ -307,7 +307,7 @@ window.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("btn-restore").addEventListener("click", async () => {
 		await writeAndApplyConfig(
 			DEFAULT_CONFIG,
-			"Restored recommended v2.2.0 AOD-only defaults",
+			"Restored recommended v2.2.1 AOD-only defaults",
 		);
 	});
 

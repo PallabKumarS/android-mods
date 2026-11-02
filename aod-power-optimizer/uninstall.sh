@@ -70,3 +70,5 @@ if [ -f "$SNAPSHOT_FILE" ]; then
     restore_setting_key global device_idle_constants "$ORIG_IDLE_CONST"
     rm -f "$SNAPSHOT_FILE"
 fi
+
+rm -f "$MODDIR/.pre_lock_brightness" "$MODDIR/.pocket_fps_snapshot" "$MODDIR/.pocket_60hz_active"

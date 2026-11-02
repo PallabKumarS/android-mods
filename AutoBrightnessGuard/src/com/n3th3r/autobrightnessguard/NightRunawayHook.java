@@ -29,6 +29,7 @@ final class NightRunawayHook {
 
     private volatile boolean mNightClampingActive = false;
     private volatile boolean mManualOverrideActive = false;
+    private volatile float mManualBrightnessValue = Float.NaN;
 
     private NightRunawayHook(Class<?> abcClass) {
         mAmbientLuxField = resolveField(abcClass, "mAmbientLux");
@@ -149,7 +150,6 @@ final class NightRunawayHook {
                 protected void beforeHookedMethod(MethodHookParam param) {
                     boolean enable = (Boolean) param.args[0];
                     if (!enable) {
-                        mManualOverrideActive = false;
                         mNightClampingActive = false;
                     }
                 }
@@ -163,6 +163,7 @@ final class NightRunawayHook {
         XSharedPreferences prefs = BrightnessHookInit.getPrefs();
         if (!isNightGuardEnabled(prefs)) {
             mManualOverrideActive = false;
+            mManualBrightnessValue = Float.NaN;
             return;
         }
 
@@ -175,12 +176,14 @@ final class NightRunawayHook {
         int luxTrigger = prefs.getInt(PrefKeys.KEY_NIGHT_LUX_THRESHOLD, PrefKeys.DEF_NIGHT_LUX_THRESHOLD);
         if (!isWithinNightLuxBand(lux, luxTrigger)) {
             mManualOverrideActive = false;
+            mManualBrightnessValue = Float.NaN;
             return;
         }
 
         float linearCap = computeLinearCap(param.thisObject, prefs);
         if (userBrightness <= (linearCap + OVERRIDE_EPSILON)) {
             mManualOverrideActive = false;
+            mManualBrightnessValue = Float.NaN;
             return;
         }
 
@@ -190,8 +193,10 @@ final class NightRunawayHook {
         );
         if (allowOverride) {
             mManualOverrideActive = true;
+            mManualBrightnessValue = userBrightness;
         } else {
             mManualOverrideActive = false;
+            mManualBrightnessValue = Float.NaN;
             param.args[1] = linearCap;
         }
     }
@@ -216,6 +221,7 @@ final class NightRunawayHook {
         int luxTrigger = prefs.getInt(PrefKeys.KEY_NIGHT_LUX_THRESHOLD, PrefKeys.DEF_NIGHT_LUX_THRESHOLD);
         if (!isWithinNightLuxBand(ambientLux, luxTrigger)) {
             mManualOverrideActive = false;
+            mManualBrightnessValue = Float.NaN;
             return brightness;
         }
 
@@ -223,6 +229,9 @@ final class NightRunawayHook {
             PrefKeys.KEY_ALLOW_MANUAL_OVERRIDE,
             PrefKeys.DEF_ALLOW_MANUAL_OVERRIDE
         )) {
+            if (!Float.isNaN(mManualBrightnessValue) && mManualBrightnessValue > 0.0f) {
+                return mManualBrightnessValue;
+            }
             return brightness;
         }
 
@@ -242,6 +251,8 @@ final class NightRunawayHook {
                 return true;
             }
             mNightClampingActive = false;
+            mManualOverrideActive = false;
+            mManualBrightnessValue = Float.NaN;
             return false;
         }
         if (ambientLux <= trigger) {

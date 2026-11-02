@@ -1,7 +1,7 @@
 SKIPUNZIP=0
 
 ui_print "************************************************"
-ui_print "  AOD Power Optimizer & Dimmer v2.2.0           "
+ui_print "  AOD Power Optimizer & Dimmer v2.2.1           "
 ui_print "  Strictly AOD-Only Architecture (Zero UI Lag)  "
 ui_print "  Author: PallabKumarS                          "
 ui_print "************************************************"

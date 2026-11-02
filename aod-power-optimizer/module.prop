@@ -1,6 +1,6 @@
 id=aod-power-optimizer
 name=AOD Power Optimizer & Dimmer
-version=v2.2.0
-versionCode=220
+version=v2.2.1
+versionCode=221
 author=PallabKumarS
-description=Strictly AOD-only battery optimizer, AMOLED LP2/LBM hardware rail lock (blocks sensor-notifier 60-nit daylight HBM drain), AOSP Pocket Mode 60Hz controller, and AOD wake guard with WebUI. Zero network, radio, or Awake 120Hz impact.
+description=Strictly AOD-only battery optimizer, AMOLED LP2/LBM hardware rail lock (blocks sensor-notifier 60-nit daylight HBM drain), AOSP Pocket Mode 60Hz controller, pre-lock screen brightness auto-restore, and AOD wake guard with WebUI. Zero network, radio, or Awake 120Hz impact.

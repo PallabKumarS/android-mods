@@ -7,16 +7,15 @@ PID_FILE="$MODDIR/daemon.pid"
 POCKET_FLAG="$MODDIR/.pocket_60hz_active"
 POCKET_SNAP="$MODDIR/.pocket_fps_snapshot"
 POCKET_WATCH_PID_FILE="$MODDIR/.pocket_watcher.pid"
+PRE_LOCK_SNAP="$MODDIR/.pre_lock_brightness"
 MI_DOZE_NODE="/sys/class/mi_display/disp-DSI-0/doze_brightness"
 
-if [ -f "$PID_FILE" ]; then
-    OLD_PID="$(cat "$PID_FILE" 2>/dev/null)"
-    if [ -n "$OLD_PID" ] && [ "$OLD_PID" != "$$" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-        pkill -P "$OLD_PID" 2>/dev/null
-        kill "$OLD_PID" 2>/dev/null
-        sleep 1
+for P in $(pgrep -f "$MODDIR/doze_daemon.sh" 2>/dev/null); do
+    if [ "$P" != "$$" ]; then
+        pkill -P "$P" 2>/dev/null
+        kill -9 "$P" 2>/dev/null
     fi
-fi
+done
 echo "$$" > "$PID_FILE"
 
 load_config() {
@@ -173,6 +172,48 @@ start_pocket_watcher() {
     echo "$!" > "$POCKET_WATCH_PID_FILE"
 }
 
+snapshot_pre_lock_brightness() {
+    [ -f "$PRE_LOCK_SNAP" ] && return
+    CUR_BRT="$(settings get system screen_brightness 2>/dev/null)"
+    CUR_ADJ="$(settings get system screen_auto_brightness_adj 2>/dev/null)"
+    CUR_FLOAT="$(settings get system screen_brightness_float 2>/dev/null)"
+    case "$CUR_BRT" in
+        ''|null|*[!0-9]*) return ;;
+    esac
+    if [ "$CUR_BRT" -gt 5 ]; then
+        cat << EOF > "$PRE_LOCK_SNAP"
+PRE_LOCK_BRT='$CUR_BRT'
+PRE_LOCK_ADJ='$CUR_ADJ'
+PRE_LOCK_FLOAT='$CUR_FLOAT'
+EOF
+    fi
+}
+
+restore_pre_lock_brightness() {
+    if [ -f "$PRE_LOCK_SNAP" ]; then
+        (
+            sleep 0.35 2>/dev/null || sleep 1
+            if [ -f "$PRE_LOCK_SNAP" ]; then
+                . "$PRE_LOCK_SNAP"
+                WAKE_BRT="$(settings get system screen_brightness 2>/dev/null)"
+                case "$WAKE_BRT" in
+                    ''|null|*[!0-9]*) WAKE_BRT=1 ;;
+                esac
+                if [ "$WAKE_BRT" -le 15 ] && [ -n "$PRE_LOCK_BRT" ] && [ "$PRE_LOCK_BRT" -gt "$WAKE_BRT" ]; then
+                    settings put system screen_brightness "$PRE_LOCK_BRT" 2>/dev/null
+                    if [ -n "$PRE_LOCK_ADJ" ] && [ "$PRE_LOCK_ADJ" != "null" ]; then
+                        settings put system screen_auto_brightness_adj "$PRE_LOCK_ADJ" 2>/dev/null
+                    fi
+                    if [ -n "$PRE_LOCK_FLOAT" ] && [ "$PRE_LOCK_FLOAT" != "null" ]; then
+                        settings put system screen_brightness_float "$PRE_LOCK_FLOAT" 2>/dev/null
+                    fi
+                fi
+                rm -f "$PRE_LOCK_SNAP"
+            fi
+        ) &
+    fi
+}
+
 cleanup_daemon() {
     pkill -P "$$" 2>/dev/null
     stop_pocket_watcher
@@ -204,6 +245,7 @@ while true; do
     logcat -b system,kernel -v brief -T 1 -e "$LOG_REGEX" 2>/dev/null | while IFS= read -r LINE; do
         case "$LINE" in
             *"PowerManagerService"*": Going to sleep"*|*"PowerManagerService"*": Dozing..."*)
+                snapshot_pre_lock_brightness
                 stop_pocket_watcher
                 IN_DOZE=1
                 PANEL_OFF=0
@@ -214,6 +256,7 @@ while true; do
                 if [ -w "$MI_DOZE_NODE" ]; then
                     echo "0" > "$MI_DOZE_NODE" 2>/dev/null
                 fi
+                restore_pre_lock_brightness
                 start_pocket_watcher
                 ;;
             *"DreamManagerService"*"screenState=DOZE"*|*"dsi_display_set_power"*"Power mode (Doze"*)
