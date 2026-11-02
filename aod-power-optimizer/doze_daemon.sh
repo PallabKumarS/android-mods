@@ -3,9 +3,10 @@ exec </dev/null >/dev/null 2>&1
 MODDIR="${0%/*}"
 CONFIG_FILE="$MODDIR/config.sh"
 PID_FILE="$MODDIR/daemon.pid"
-SNAPSHOT_FILE="$MODDIR/.awake_radio_snapshot"
-SCOPE_FLAG="$MODDIR/.doze_scope_active"
 
+POCKET_FLAG="$MODDIR/.pocket_60hz_active"
+POCKET_SNAP="$MODDIR/.pocket_fps_snapshot"
+POCKET_WATCH_PID_FILE="$MODDIR/.pocket_watcher.pid"
 MI_DOZE_NODE="/sys/class/mi_display/disp-DSI-0/doze_brightness"
 
 if [ -f "$PID_FILE" ]; then
@@ -23,9 +24,7 @@ load_config() {
     AOD_RAIL_MODE=lbm
     AOD_BRIGHTNESS_OVERRIDE=0
     AOD_CUSTOM_BRIGHTNESS=1
-    DEEP_DOZE_OPT=1
-    WIFI_SCAN_THROTTLE=1
-    BLE_SCAN_THROTTLE=1
+    POCKET_MODE_60HZ=1
     if [ -f "$CONFIG_FILE" ]; then
         . "$CONFIG_FILE"
     fi
@@ -70,7 +69,7 @@ handle_kernel_doze_rail_event() {
     case "$AOD_RAIL_MODE" in
         lbm)
             case "$EVENT_LINE" in
-                *"doze_brightness = 1"*)
+                *"doze_brightness = 1"*|*"doze_brightness_high"*)
                     echo "2" > "$MI_DOZE_NODE" 2>/dev/null
                     ;;
             esac
@@ -85,85 +84,104 @@ handle_kernel_doze_rail_event() {
     esac
 }
 
-restore_global_key() {
-    KEY="$1"
-    VAL="$2"
-    if [ -z "$VAL" ] || [ "$VAL" = "null" ]; then
-        settings delete global "$KEY" 2>/dev/null
-    else
-        settings put global "$KEY" "$VAL" 2>/dev/null
-    fi
-}
-
-sanitize_val() {
-    printf '%s' "$1" | tr -d "'\r\n"
-}
-
-enter_doze_scoped_optimizations() {
-    load_config
-    if [ ! -f "$SCOPE_FLAG" ]; then
-        cat << EOF > "$SNAPSHOT_FILE"
-ORIG_WIFI_SCAN='$(sanitize_val "$(settings get global wifi_scan_always_enabled 2>/dev/null)")'
-ORIG_WIFI_WAKE='$(sanitize_val "$(settings get global wifi_wakeup_enabled 2>/dev/null)")'
-ORIG_BLE_ALWAYS='$(sanitize_val "$(settings get global ble_scan_always_enabled 2>/dev/null)")'
-ORIG_BLE_LP_INT='$(sanitize_val "$(settings get global ble_scan_low_power_interval_ms 2>/dev/null)")'
-ORIG_BLE_LP_WIN='$(sanitize_val "$(settings get global ble_scan_low_power_window_ms 2>/dev/null)")'
-ORIG_BLE_BAL_INT='$(sanitize_val "$(settings get global ble_scan_balanced_interval_ms 2>/dev/null)")'
-ORIG_BLE_BAL_WIN='$(sanitize_val "$(settings get global ble_scan_balanced_window_ms 2>/dev/null)")'
-ORIG_IDLE_CONST='$(sanitize_val "$(settings get global device_idle_constants 2>/dev/null)")'
+enter_pocket_60hz() {
+    if [ ! -f "$POCKET_FLAG" ]; then
+        CUR_PEAK="$(settings get system peak_refresh_rate 2>/dev/null)"
+        CUR_MIN="$(settings get system min_refresh_rate 2>/dev/null)"
+        EXTREME="$(settings get system extreme_refresh_rate 2>/dev/null)"
+        if [ "$EXTREME" = "1" ]; then
+            [ "$CUR_PEAK" = "60.0" ] || [ -z "$CUR_PEAK" ] || [ "$CUR_PEAK" = "null" ] && CUR_PEAK="120.0"
+            [ "$CUR_MIN" = "60.0" ] || [ -z "$CUR_MIN" ] || [ "$CUR_MIN" = "null" ] && CUR_MIN="120.0"
+        fi
+        cat << EOF > "$POCKET_SNAP"
+ORIG_PEAK_FPS='$CUR_PEAK'
+ORIG_MIN_FPS='$CUR_MIN'
 EOF
-        touch "$SCOPE_FLAG"
-    fi
-
-    if [ "$WIFI_SCAN_THROTTLE" = "1" ]; then
-        settings put global wifi_scan_always_enabled 0 2>/dev/null
-        settings put global wifi_wakeup_enabled 0 2>/dev/null
-    fi
-
-    if [ "$BLE_SCAN_THROTTLE" = "1" ]; then
-        settings put global ble_scan_always_enabled 0 2>/dev/null
-        settings put global ble_scan_low_power_interval_ms 10240 2>/dev/null
-        settings put global ble_scan_low_power_window_ms 512 2>/dev/null
-        settings put global ble_scan_balanced_interval_ms 4096 2>/dev/null
-        settings put global ble_scan_balanced_window_ms 512 2>/dev/null
-    fi
-
-    if [ "$DEEP_DOZE_OPT" = "1" ]; then
-        settings put global device_idle_constants "light_after_inactive_to=60000,inactive_to=60000,sensing_to=0,locating_to=0,idle_after_inactive_to=0,idle_pending_to=60000" 2>/dev/null
+        touch "$POCKET_FLAG"
+        settings put system peak_refresh_rate 60.0 2>/dev/null
+        settings put system min_refresh_rate 60.0 2>/dev/null
     fi
 }
 
-exit_doze_scoped_optimizations() {
-    if [ ! -f "$SCOPE_FLAG" ]; then
-        return
+exit_pocket_60hz() {
+    if [ -f "$POCKET_FLAG" ]; then
+        if [ -f "$POCKET_SNAP" ]; then
+            . "$POCKET_SNAP"
+            if [ -n "$ORIG_PEAK_FPS" ] && [ "$ORIG_PEAK_FPS" != "null" ]; then
+                settings put system peak_refresh_rate "$ORIG_PEAK_FPS" 2>/dev/null
+            else
+                settings put system peak_refresh_rate 120.0 2>/dev/null
+            fi
+            if [ -n "$ORIG_MIN_FPS" ] && [ "$ORIG_MIN_FPS" != "null" ]; then
+                settings put system min_refresh_rate "$ORIG_MIN_FPS" 2>/dev/null
+            else
+                settings put system min_refresh_rate 120.0 2>/dev/null
+            fi
+        else
+            settings put system peak_refresh_rate 120.0 2>/dev/null
+            settings put system min_refresh_rate 120.0 2>/dev/null
+        fi
+        rm -f "$POCKET_FLAG"
     fi
-    if [ -f "$SNAPSHOT_FILE" ]; then
-        . "$SNAPSHOT_FILE"
-        restore_global_key wifi_scan_always_enabled "$ORIG_WIFI_SCAN"
-        restore_global_key wifi_wakeup_enabled "$ORIG_WIFI_WAKE"
-        restore_global_key ble_scan_always_enabled "$ORIG_BLE_ALWAYS"
-        restore_global_key ble_scan_low_power_interval_ms "$ORIG_BLE_LP_INT"
-        restore_global_key ble_scan_low_power_window_ms "$ORIG_BLE_LP_WIN"
-        restore_global_key ble_scan_balanced_interval_ms "$ORIG_BLE_BAL_INT"
-        restore_global_key ble_scan_balanced_window_ms "$ORIG_BLE_BAL_WIN"
-        restore_global_key device_idle_constants "$ORIG_IDLE_CONST"
-    fi
-    rm -f "$SCOPE_FLAG"
 }
 
-restore_awake_panel_and_scope() {
-    if [ -w "$MI_DOZE_NODE" ]; then
+stop_pocket_watcher() {
+    if [ -f "$POCKET_WATCH_PID_FILE" ]; then
+        WPID="$(cat "$POCKET_WATCH_PID_FILE" 2>/dev/null)"
+        if [ -n "$WPID" ]; then
+            kill "$WPID" 2>/dev/null
+        fi
+        rm -f "$POCKET_WATCH_PID_FILE"
+    fi
+    exit_pocket_60hz
+}
+
+start_pocket_watcher() {
+    stop_pocket_watcher
+    load_config
+    [ "$POCKET_MODE_60HZ" != "1" ] && return
+    [ "$(settings get system pocket_judge 2>/dev/null)" != "1" ] && return
+
+    (
+        COUNT=0
+        while [ "$COUNT" -lt 240 ]; do
+            COUNT=$((COUNT + 1))
+            CALL_RES="$(service call pocket 7 2>/dev/null)"
+            case "$CALL_RES" in
+                *"00000001 "*)
+                    enter_pocket_60hz
+                    ;;
+                *)
+                    [ -f "$POCKET_FLAG" ] && exit_pocket_60hz
+                    CHECK_TICK=$((COUNT % 4))
+                    if [ "$CHECK_TICK" -eq 0 ]; then
+                        DUMP="$(dumpsys pocket 2>/dev/null)"
+                        case "$DUMP" in
+                            *'"interactive":false'*|*'"proximityRegistered":false'*'"isDeviceInPocket":false'*)
+                                exit_pocket_60hz
+                                break
+                                ;;
+                        esac
+                    fi
+                    ;;
+            esac
+            sleep 0.25 2>/dev/null || sleep 1
+        done
+        exit_pocket_60hz
+        rm -f "$POCKET_WATCH_PID_FILE"
+    ) &
+    echo "$!" > "$POCKET_WATCH_PID_FILE"
+}
+
+cleanup_daemon() {
+    pkill -P "$$" 2>/dev/null
+    stop_pocket_watcher
+    if [ "$IN_DOZE" = "0" ] && [ -w "$MI_DOZE_NODE" ]; then
         CUR_RAIL="$(cat "$MI_DOZE_NODE" 2>/dev/null)"
         if [ -n "$CUR_RAIL" ] && [ "$CUR_RAIL" != "0" ]; then
             echo "0" > "$MI_DOZE_NODE" 2>/dev/null
         fi
     fi
-    exit_doze_scoped_optimizations
-}
-
-cleanup_daemon() {
-    pkill -P "$$" 2>/dev/null
-    restore_awake_panel_and_scope
     rm -f "$PID_FILE"
     exit 0
 }
@@ -171,74 +189,54 @@ cleanup_daemon() {
 trap cleanup_daemon INT TERM EXIT
 
 IN_DOZE=0
-SCREEN_DOZE=0
+PANEL_OFF=0
 
 if dumpsys power 2>/dev/null | grep -q "mWakefulness=Dozing"; then
     IN_DOZE=1
-    enter_doze_scoped_optimizations
-    if dumpsys display 2>/dev/null | grep -qE "mScreenState=DOZE|Display State: DOZE"; then
-        SCREEN_DOZE=1
-        apply_doze_panel_rail
-    fi
+    apply_doze_panel_rail
 else
-    exit_doze_scoped_optimizations
+    start_pocket_watcher
 fi
 
-# logcat -e filters on message body (not tag), so patterns match exact framework and msm_drm message bodies
-LOG_REGEX='^Dozing\.\.\.|^Waking up from|Dream requested to start dozing:.*screenState=|dsi_display_set_power.*Power mode \(|SF\.setDisplayPowerMode|mi_disp_ioctl_set_doze_brightness'
+LOG_REGEX='^Dozing\.\.\.|^Waking up from|^Going to sleep|Dream requested to start dozing:.*screenState=|dsi_display_set_power.*Power mode \(|SF\.setDisplayPowerMode|mi_disp_ioctl_set_doze_brightness|doze_brightness_high'
 
 while true; do
     logcat -b system,kernel -v brief -T 1 -e "$LOG_REGEX" 2>/dev/null | while IFS= read -r LINE; do
         case "$LINE" in
-            *"PowerManagerService"*": Dozing..."*)
+            *"PowerManagerService"*": Going to sleep"*|*"PowerManagerService"*": Dozing..."*)
+                stop_pocket_watcher
                 IN_DOZE=1
-                SCREEN_DOZE=0
-                if [ ! -w "$MI_DOZE_NODE" ] && [ ! -f "$SCOPE_FLAG" ]; then
-                    enter_doze_scoped_optimizations
-                fi
+                PANEL_OFF=0
                 ;;
             *"PowerManagerService"*": Waking up"*)
                 IN_DOZE=0
-                SCREEN_DOZE=0
+                PANEL_OFF=0
                 if [ -w "$MI_DOZE_NODE" ]; then
                     echo "0" > "$MI_DOZE_NODE" 2>/dev/null
                 fi
-                exit_doze_scoped_optimizations
+                start_pocket_watcher
                 ;;
-            *"DreamManagerService"*"screenState=DOZE"*)
+            *"DreamManagerService"*"screenState=DOZE"*|*"dsi_display_set_power"*"Power mode (Doze"*)
                 IN_DOZE=1
-                SCREEN_DOZE=1
+                PANEL_OFF=0
                 apply_doze_panel_rail
-                ;;
-            *"dsi_display_set_power"*"Power mode (Doze"*)
-                IN_DOZE=1
-                SCREEN_DOZE=1
-                apply_doze_panel_rail
-                if [ ! -f "$SCOPE_FLAG" ]; then
-                    enter_doze_scoped_optimizations
-                fi
                 ;;
             *"dsi_display_set_power"*"Power mode (Off)"*)
-                SCREEN_DOZE=0
-                if [ "$IN_DOZE" = "1" ] && [ ! -f "$SCOPE_FLAG" ]; then
-                    enter_doze_scoped_optimizations
-                fi
+                PANEL_OFF=1
                 ;;
-            *"DreamManagerService"*"screenState=ON"*|*"DreamManagerService"*"screenState=OFF"*|*"dsi_display_set_power"*"Power mode (On)"*)
-                SCREEN_DOZE=0
+            *"dsi_display_set_power"*"Power mode (On)"*)
+                PANEL_OFF=0
+                if [ "$IN_DOZE" = "0" ] && [ -w "$MI_DOZE_NODE" ]; then
+                    echo "0" > "$MI_DOZE_NODE" 2>/dev/null
+                fi
                 ;;
             *"LocalDisplayAdapter"*"SF.setDisplayPowerMode"*)
-                if [ "$IN_DOZE" = "1" ]; then
-                    if [ "$SCREEN_DOZE" = "1" ]; then
-                        apply_doze_panel_rail
-                    fi
-                    if [ ! -f "$SCOPE_FLAG" ]; then
-                        enter_doze_scoped_optimizations
-                    fi
+                if [ "$IN_DOZE" = "1" ] && [ "$PANEL_OFF" = "0" ]; then
+                    apply_doze_panel_rail
                 fi
                 ;;
-            *"mi_disp_ioctl_set_doze_brightness"*)
-                if [ "$IN_DOZE" = "1" ] && [ "$SCREEN_DOZE" = "1" ]; then
+            *"mi_disp_ioctl_set_doze_brightness"*|*"doze_brightness_high"*)
+                if [ "$IN_DOZE" = "1" ] && [ "$PANEL_OFF" = "0" ]; then
                     handle_kernel_doze_rail_event "$LINE"
                 fi
                 ;;

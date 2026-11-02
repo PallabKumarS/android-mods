@@ -10,7 +10,7 @@
 	<header class="app-header">
 		<div class="header-container">
 			<h1 class="header-title">AOD Power Optimizer &amp; Dimmer</h1>
-			<p class="header-subtitle">v2.1.0 &middot; Strictly AOD-Only AMOLED LP2 Rail &amp; Wake Guard (Zero Awake / 120Hz Impact)</p>
+			<p class="header-subtitle">v2.2.0 &middot; Strictly AOD-Only AMOLED LP2 Rail &amp; Wake Guard (Zero Network / Awake 120Hz Impact)</p>
 		</div>
 	</header>
 
@@ -118,31 +118,31 @@
 						<span class="badge" id="badge-low-bit">Global: --</span>
 					</div>
 				</div>
-
-				<div class="config-card">
-					<div class="card-content">
-						<div class="card-text">
-							<h3>Proximity Pocket Shutoff</h3>
-							<p>Powers down the AMOLED panel completely when face-down or inside a pocket during AOD.</p>
-						</div>
-						<label class="switch" for="chk-proximity" aria-label="Toggle Proximity Pocket Shutoff">
-							<span class="sr-only">Toggle Proximity Pocket Shutoff</span>
-							<input type="checkbox" id="chk-proximity">
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="card-meta">
-						<span class="badge" id="badge-proximity">Secure: --</span>
-					</div>
-				</div>
 			</div>
 		</section>
 
 		<section class="section-container">
 			<div class="section-header">
-				<h2>AOD-Only Wake &amp; Doze Session Guard</h2>
+				<h2>AOD Wake Guard &amp; Pocket Refresh Controller</h2>
 			</div>
 			<div class="grid-fluid">
+				<div class="config-card">
+					<div class="card-content">
+						<div class="card-text">
+							<h3>AOSP Pocket Mode 60 Hz</h3>
+							<p>Enforces 60 Hz strictly while AOSP's native Pocket Mode lockscreen overlay is visible. Instantly restores your exact 120 Hz refresh rate the moment it hides or unlocks.</p>
+						</div>
+						<label class="switch" for="chk-pocket-60hz" aria-label="Toggle AOSP Pocket Mode 60 Hz">
+							<span class="sr-only">Toggle AOSP Pocket Mode 60 Hz</span>
+							<input type="checkbox" id="chk-pocket-60hz">
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="card-meta">
+						<span class="badge" id="badge-pocket-60hz">Pocket Mode: --</span>
+					</div>
+				</div>
+
 				<div class="config-card">
 					<div class="card-content">
 						<div class="card-text">
@@ -180,51 +180,17 @@
 				<div class="config-card">
 					<div class="card-content">
 						<div class="card-text">
-							<h3>AOD-Scoped Fast Deep Doze</h3>
-							<p>Applied strictly on entering AOD and restored immediately on wake: enters Deep Doze in 60s without 15s accelerometer/GPS sensing windows.</p>
+							<h3>Suppress Single-Tap Pocket Wake</h3>
+							<p>Stops accidental fabric brushes and pocket touches from waking AOD into high-power pulse cycles. Double-Tap to Wake, Screen-Off UDFPS fingerprint, and Power button remain fully functional.</p>
 						</div>
-						<label class="switch" for="chk-deep-doze" aria-label="Toggle AOD-Scoped Fast Deep Doze">
-							<span class="sr-only">Toggle AOD-Scoped Fast Deep Doze</span>
-							<input type="checkbox" id="chk-deep-doze">
+						<label class="switch" for="chk-suppress-single-tap" aria-label="Toggle Suppress Single-Tap Pocket Wake">
+							<span class="sr-only">Toggle Suppress Single-Tap Pocket Wake</span>
+							<input type="checkbox" id="chk-suppress-single-tap">
 							<span class="slider"></span>
 						</label>
 					</div>
 					<div class="card-meta">
-						<span class="badge" id="badge-deep-doze">Doze-Only: --</span>
-					</div>
-				</div>
-
-				<div class="config-card">
-					<div class="card-content">
-						<div class="card-text">
-							<h3>AOD-Scoped Wi-Fi Scan Guard</h3>
-							<p>Suppresses background Wi-Fi location scan wakes strictly while Dozing; restores stock Awake Wi-Fi scan behavior immediately on wake.</p>
-						</div>
-						<label class="switch" for="chk-wifi-scan" aria-label="Toggle AOD-Scoped Wi-Fi Scan Guard">
-							<span class="sr-only">Toggle AOD-Scoped Wi-Fi Scan Guard</span>
-							<input type="checkbox" id="chk-wifi-scan">
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="card-meta">
-						<span class="badge" id="badge-wifi-scan">Doze-Only: --</span>
-					</div>
-				</div>
-
-				<div class="config-card">
-					<div class="card-content">
-						<div class="card-text">
-							<h3>AOD-Scoped BLE Duty Throttle</h3>
-							<p>Throttles background BLE scan duty strictly during AOD while keeping Bluetooth ON and connectable for instant TWS earbud auto-connect; restores stock values on wake.</p>
-						</div>
-						<label class="switch" for="chk-ble-scan" aria-label="Toggle AOD-Scoped BLE Duty Throttle">
-							<span class="sr-only">Toggle AOD-Scoped BLE Duty Throttle</span>
-							<input type="checkbox" id="chk-ble-scan">
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="card-meta">
-						<span class="badge" id="badge-ble-scan">Doze-Only: --</span>
+						<span class="badge" id="badge-suppress-single-tap">Single-Tap: --</span>
 					</div>
 				</div>
 			</div>

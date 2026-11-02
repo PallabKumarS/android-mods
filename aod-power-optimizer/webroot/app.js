@@ -7,12 +7,10 @@ const DEFAULT_CONFIG = {
 	AOD_BRIGHTNESS_OVERRIDE: "0",
 	AOD_CUSTOM_BRIGHTNESS: "1",
 	LOW_BIT: "1",
-	PROXIMITY_POCKET: "1",
+	POCKET_MODE_60HZ: "1",
 	SUPPRESS_AOD_PULSE_WAKE: "1",
 	SUPPRESS_TILT_WAKE: "1",
-	DEEP_DOZE_OPT: "1",
-	WIFI_SCAN_THROTTLE: "1",
-	BLE_SCAN_THROTTLE: "1",
+	SUPPRESS_SINGLE_TAP_WAKE: "1",
 };
 
 let execSeq = 0;
@@ -160,10 +158,10 @@ async function loadCurrentSettings() {
 		echo "---LIVE---"
 		echo "SYS_DOZE_BRT=$(settings get secure doze_brightness 2>/dev/null)"
 		echo "LOW_BIT_LIVE=$(settings get global ambient_low_bit_enabled 2>/dev/null)"
-		echo "PROX_LIVE=$(settings get secure doze_proximity_sensor_enabled 2>/dev/null)"
+		echo "POCKET_JUDGE_LIVE=$(settings get system pocket_judge 2>/dev/null)"
 		echo "DOZE_EN_LIVE=$(settings get secure doze_enabled 2>/dev/null)"
-		echo "TILT_GLOBAL_LIVE=$(settings get global ambient_tilt_to_wake 2>/dev/null)"
-		echo "SCOPE_ACTIVE=$([ -f "${MODDIR}/.doze_scope_active" ] && echo 1 || echo 0)"
+		echo "PICKUP_LIVE=$(settings get secure doze_pulse_on_pick_up 2>/dev/null)"
+		echo "SINGLE_TAP_LIVE=$(settings get secure doze_tap_gesture 2>/dev/null)"
 		if [ -r "${MI_DOZE_NODE}" ]; then echo "MI_NODE=supported"; else echo "MI_NODE=missing"; fi
 	`);
 
@@ -212,12 +210,17 @@ function populateStandardControls(cfg, live) {
 		live.LOW_BIT_LIVE === "1",
 	);
 
-	const isProx = cfg.PROXIMITY_POCKET === "1";
-	document.getElementById("chk-proximity").checked = isProx;
+	const isPocket60 = cfg.POCKET_MODE_60HZ === "1";
+	document.getElementById("chk-pocket-60hz").checked = isPocket60;
+	const judgeActive = live.POCKET_JUDGE_LIVE === "1";
 	updateBadge(
-		"badge-proximity",
-		`Secure: ${live.PROX_LIVE || "0"}`,
-		live.PROX_LIVE === "1",
+		"badge-pocket-60hz",
+		judgeActive
+			? isPocket60
+				? "Armed (60 Hz in Pocket)"
+				: "Disabled in Optimizer"
+			: "Pocket Judge Disabled in ROM",
+		isPocket60 && judgeActive,
 	);
 
 	const pulseOpt = cfg.SUPPRESS_AOD_PULSE_WAKE === "1";
@@ -234,37 +237,18 @@ function populateStandardControls(cfg, live) {
 	document.getElementById("chk-suppress-tilt").checked = tiltOpt;
 	updateBadge(
 		"badge-suppress-tilt",
-		tiltOpt
-			? "Pickup Wake Suppressed"
-			: `Active (${live.TILT_GLOBAL_LIVE || "1"})`,
+		tiltOpt ? "Pickup Wake Suppressed" : `Active (${live.PICKUP_LIVE || "1"})`,
 		tiltOpt,
 	);
 
-	const scopeSuffix =
-		live.SCOPE_ACTIVE === "1" ? "Active in Doze" : "Armed for AOD";
-
-	const deepDoze = cfg.DEEP_DOZE_OPT === "1";
-	document.getElementById("chk-deep-doze").checked = deepDoze;
+	const singleTapOpt = cfg.SUPPRESS_SINGLE_TAP_WAKE === "1";
+	document.getElementById("chk-suppress-single-tap").checked = singleTapOpt;
 	updateBadge(
-		"badge-deep-doze",
-		deepDoze ? `60s Sensorless (${scopeSuffix})` : "Disabled",
-		deepDoze,
-	);
-
-	const wifiOpt = cfg.WIFI_SCAN_THROTTLE === "1";
-	document.getElementById("chk-wifi-scan").checked = wifiOpt;
-	updateBadge(
-		"badge-wifi-scan",
-		wifiOpt ? `Doze-Only (${scopeSuffix})` : "Disabled",
-		wifiOpt,
-	);
-
-	const bleOpt = cfg.BLE_SCAN_THROTTLE === "1";
-	document.getElementById("chk-ble-scan").checked = bleOpt;
-	updateBadge(
-		"badge-ble-scan",
-		bleOpt ? `5% Duty in AOD (${scopeSuffix})` : "Disabled",
-		bleOpt,
+		"badge-suppress-single-tap",
+		singleTapOpt
+			? "Pocket Touch Suppressed"
+			: `Active (${live.SINGLE_TAP_LIVE || "1"})`,
+		singleTapOpt,
 	);
 }
 
@@ -276,12 +260,10 @@ function collectFormConfig() {
 		AOD_BRIGHTNESS_OVERRIDE: flag("chk-aod-override"),
 		AOD_CUSTOM_BRIGHTNESS: document.getElementById("rng-aod-brightness").value,
 		LOW_BIT: flag("chk-low-bit"),
-		PROXIMITY_POCKET: flag("chk-proximity"),
+		POCKET_MODE_60HZ: flag("chk-pocket-60hz"),
 		SUPPRESS_AOD_PULSE_WAKE: flag("chk-suppress-pulse"),
 		SUPPRESS_TILT_WAKE: flag("chk-suppress-tilt"),
-		DEEP_DOZE_OPT: flag("chk-deep-doze"),
-		WIFI_SCAN_THROTTLE: flag("chk-wifi-scan"),
-		BLE_SCAN_THROTTLE: flag("chk-ble-scan"),
+		SUPPRESS_SINGLE_TAP_WAKE: flag("chk-suppress-single-tap"),
 	};
 }
 
@@ -325,7 +307,7 @@ window.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("btn-restore").addEventListener("click", async () => {
 		await writeAndApplyConfig(
 			DEFAULT_CONFIG,
-			"Restored recommended v2.1.0 AOD-only defaults",
+			"Restored recommended v2.2.0 AOD-only defaults",
 		);
 	});
 

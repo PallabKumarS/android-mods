@@ -1,7 +1,7 @@
 SKIPUNZIP=0
 
 ui_print "************************************************"
-ui_print "  AOD Power Optimizer & Dimmer v2.1.0           "
+ui_print "  AOD Power Optimizer & Dimmer v2.2.0           "
 ui_print "  Strictly AOD-Only Architecture (Zero UI Lag)  "
 ui_print "  Author: PallabKumarS                          "
 ui_print "************************************************"
@@ -26,27 +26,30 @@ AOD_RAIL_MODE=lbm
 AOD_BRIGHTNESS_OVERRIDE=0
 AOD_CUSTOM_BRIGHTNESS=1
 LOW_BIT=1
-PROXIMITY_POCKET=1
+POCKET_MODE_60HZ=1
 SUPPRESS_AOD_PULSE_WAKE=1
 SUPPRESS_TILT_WAKE=1
-DEEP_DOZE_OPT=1
-WIFI_SCAN_THROTTLE=1
-BLE_SCAN_THROTTLE=1
+SUPPRESS_SINGLE_TAP_WAKE=1
 
 EXISTING_MOD="/data/adb/modules/aod-power-optimizer"
 if [ -f "$EXISTING_MOD/config.sh" ]; then
     . "$EXISTING_MOD/config.sh"
-    if [ ! -f "$EXISTING_MOD/.v21_migrated" ]; then
-        AOD_RAIL_MODE=lbm
-        SUPPRESS_AOD_PULSE_WAKE=1
-        SUPPRESS_TILT_WAKE=1
+    if [ ! -f "$EXISTING_MOD/.v22_migrated" ]; then
+        POCKET_MODE_60HZ=1
+        SUPPRESS_SINGLE_TAP_WAKE=1
     fi
 fi
 
 for STATE_FILE in \
     .orig_doze_brightness .override_was_active \
     .orig_doze_enabled .orig_ambient_pulse .pulse_was_suppressed \
-    .orig_wake_gesture .orig_tilt_to_wake .tilt_was_suppressed \
+    .orig_wake_gesture .orig_tilt_to_wake \
+    .orig_doze_pulse_on_pick_up .orig_doze_quick_pickup_gesture \
+    .orig_doze_wake_display_gesture .orig_doze_wake_screen_gesture \
+    .tilt_was_suppressed \
+    .orig_doze_tap_gesture .orig_doze_pulse_on_single_tap .orig_ambient_touch_to_wake \
+    .single_tap_was_suppressed \
+    .pocket_fps_snapshot .pocket_60hz_active \
     .awake_radio_snapshot .doze_scope_active; do
     if [ -f "$EXISTING_MOD/$STATE_FILE" ]; then
         cp -f "$EXISTING_MOD/$STATE_FILE" "$MODPATH/$STATE_FILE"
@@ -60,16 +63,14 @@ AOD_RAIL_MODE=$AOD_RAIL_MODE
 AOD_BRIGHTNESS_OVERRIDE=$AOD_BRIGHTNESS_OVERRIDE
 AOD_CUSTOM_BRIGHTNESS=$AOD_CUSTOM_BRIGHTNESS
 LOW_BIT=$LOW_BIT
-PROXIMITY_POCKET=$PROXIMITY_POCKET
+POCKET_MODE_60HZ=$POCKET_MODE_60HZ
 SUPPRESS_AOD_PULSE_WAKE=$SUPPRESS_AOD_PULSE_WAKE
 SUPPRESS_TILT_WAKE=$SUPPRESS_TILT_WAKE
-DEEP_DOZE_OPT=$DEEP_DOZE_OPT
-WIFI_SCAN_THROTTLE=$WIFI_SCAN_THROTTLE
-BLE_SCAN_THROTTLE=$BLE_SCAN_THROTTLE
+SUPPRESS_SINGLE_TAP_WAKE=$SUPPRESS_SINGLE_TAP_WAKE
 EOF
 set_perm "$CONFIG_FILE" 0 0 0644
 
-ui_print "- Cleaning legacy Awake overrides and applying AOD-only settings..."
+ui_print "- Cleaning legacy radio overrides and applying AOD-only settings..."
 sh "$MODPATH/apply_settings.sh"
 
 ui_print "- Installation complete. Open WebUI in KernelSU to configure."
